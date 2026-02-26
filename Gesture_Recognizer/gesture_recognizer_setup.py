@@ -6,7 +6,6 @@ model_path = '/home/tejasps/Documents/Internship/app/google_mediapipe_models/ges
 
 base_options = python.BaseOptions(model_asset_path=model_path)
 
-BaseOptions = mp.tasks.BaseOptions
 GestureRecognizer = mp.tasks.vision.GestureRecognizer
 GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
 GestureRecognizerResult = mp.tasks.vision.GestureRecognizerResult
