@@ -1,3 +1,4 @@
 # Python temporary files #
 ##########################
 /Gesture_Recognizer/__pycache__/
+*.log
