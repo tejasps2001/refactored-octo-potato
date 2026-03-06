@@ -10,10 +10,10 @@ recognizer = create_gesture_recognizer()
 cap = cv2.VideoCapture(0)
 timestamp = 0
 
-# Do hand gesture recognition every second, not every frame
+# Do hand gesture recognition every 200 milliseconds
 
 last_infer_time = 0.0
-interval = 1.0  # seconds
+interval = 200.0  # milliseconds
 
 timestamp_ms = 0
 
@@ -26,8 +26,8 @@ while True:
     cv2.imshow("Gesture Stream", frame)
 
     # Get a monotonically increasing timestamp to keep track of
-    # time 8elapsed
-    now = time.monotonic()
+    # time elapsed
+    now = time.monotonic() * 1000
     if now - last_infer_time >= interval:
         last_infer_time = now
 
