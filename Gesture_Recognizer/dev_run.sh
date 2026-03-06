@@ -13,5 +13,4 @@ else
     source "$VENV_PATH/bin/activate"
 fi
 
-cd ./app/Gesture_Recognizer
 python3 ./run_camera.py

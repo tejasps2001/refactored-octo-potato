@@ -17,7 +17,7 @@ def print_result(result:GestureRecognizerResult, output_image:mp.Image, timestam
 
 def record_result(result:GestureRecognizerResult, output_image:mp.Image, timestamp_ms: int):
     # Result contains all the hand recognition metadata
-    with open('detections.txt', 'a') as f:
+    with open('detections.log', 'a') as f:
         if(result.handedness and result.handedness[0]):
             # No need to check for the emptiness of the inner list because if a
             # hand was detected, then there'll be at least one Category object
@@ -36,6 +36,6 @@ def create_gesture_recognizer():
         result_callback=record_result)
     # Create a new heading for separation
     print("hell")
-    with open('detections.txt', 'a') as f:
+    with open('detections.log', 'a') as f:
         f.write(f"\n{datetime.now()}\n")
     return GestureRecognizer.create_from_options(options)
