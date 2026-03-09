@@ -23,9 +23,9 @@ def record_result(result:GestureRecognizerResult, output_image:mp.Image, timesta
             # hand was detected, then there'll be at least one Category object
             # inside.
             if(result.handedness[0][0].display_name == 'Right'):
-                f.write(f"Right hand raised at {timestamp_ms/1000}\n")
+                f.write(f"Right hand raised at {timestamp_ms/1000} seconds.\n")
             if(result.handedness[0][0].display_name == 'Left'):
-                f.write(f"Left hand raised at {timestamp_ms/1000}\n")
+                f.write(f"Left hand raised at {timestamp_ms/1000} seconds.\n")
 
 
 # Create a gesture recognizer instance with the live stream mode:
