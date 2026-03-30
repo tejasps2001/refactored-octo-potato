@@ -52,15 +52,24 @@ def predict_emotion(result):
     if scores['eyeLookDownLeft'] > 0.4 and scores['eyeLookDownRight'] > 0.4 and scores['jawOpen'] < 0.1:
         return "Bored"
 
-    return "is neutral"
-
-def create_emotion_recognizer():
-    options = FaceLandmarkerOptions(
-        base_options = base_options,
-        running_mode = VisionRunningMode.LIVE_STREAM,
-        output_face_blendshapes = True,
-        result_callback=record_result
-    )
+    # 7. NEUTRAL (Default state)
+    return "Neutral"
+    
+def create_emotion_recognizer(running_mode=VisionRunningMode.LIVE_STREAM):
+    if running_mode == VisionRunningMode.LIVE_STREAM:
+        options = FaceLandmarkerOptions(
+            base_options = base_options,
+            running_mode = running_mode,
+            output_face_blendshapes = True,
+            result_callback=record_result
+        )
+    else:
+        # Here, the running_mode is IMAGE
+        options = FaceLandmarkerOptions(
+            base_options = base_options,
+            running_mode = running_mode,
+            output_face_blendshapes = True
+        )
     with open('emotion_detections.log', 'a') as f:
         f.write(f"{datetime.now()}\n")
     return FaceLandmarker.create_from_options(options)

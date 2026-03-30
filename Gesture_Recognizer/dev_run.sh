@@ -13,4 +13,5 @@ else
     source "$VENV_PATH/bin/activate"
 fi
 
-python3 ./run_camera.py
+# python3 ./run_camera.py
+python3 ./test/test_emotion_recognizer.py
