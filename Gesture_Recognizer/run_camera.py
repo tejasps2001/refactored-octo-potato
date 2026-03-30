@@ -1,6 +1,5 @@
 import cv2
 import time
-import queue
 import mediapipe as mp
 from gesture_recognizer_setup import create_gesture_recognizer
 from emotion_recognizer_setup import create_emotion_recognizer

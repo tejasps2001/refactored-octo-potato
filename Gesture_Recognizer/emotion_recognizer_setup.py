@@ -19,35 +19,38 @@ def print_result(result:FaceLandmarkerResult, output_image:mp.Image, timestamp_m
 
 def record_result(result:FaceLandmarkerResult, output_image:mp.Image, timestamp_ms:int):
     with open('emotion_detections.log', 'a') as f:
-        if(result.face_blendshapes and result.face_blendshapes[0]):
-        # No need to check for the emptiness of the inner list because if a
-        # face was detected, then there'll be at least one Category object
-        # inside.
+        if result.face_blendshapes and result.face_blendshapes[0]:
+        # No need to check for the emptiness of the inner list in result.face_blendshapes[0] 
+        # because if a face was detected, then there'll be at least one Category object inside.
             f.write(f"The subject is {predict_emotion(result)}.\n")
 
 def predict_emotion(result):
     # Convert list of categories to a dict for easy access
     scores = {blendshape.category_name: blendshape.score for blendshape in result.face_blendshapes[0]}
     # LOGIC RULES
-    if scores['mouthSmileRight'] > 0.6 and scores['mouthSmileLeft'] > 0.6: #
-        return "in joy"
+    # 1. JOY (Duchenne Smile: Mouth + Cheeks + Eyes)
+    if scores['mouthSmileLeft'] > 0.5 and scores['mouthSmileRight'] > 0.5 and scores['cheekPuff'] > 0.2:
+        return "Joy"
 
-    if scores['browDownLeft'] > 0.6 and scores['browDownRight'] > 0.6:
-        # Distinguish Concentration vs. Frustration
-        # No need to check for mouthPressRight too
-        if scores['mouthPressLeft'] > 0.6 or scores['mouthFrownLeft'] > 0.6:
-            return "is frustrated"
-        else: #
-            return "is concentrating"
+    # 2. FRUSTRATION (Tension in brow, pressed lips, narrowed eyes)
+    if scores['browDownLeft'] > 0.6 and scores['browDownRight'] > 0.6 and scores['mouthPressLeft'] > 0.4:
+        return "Frustration"
 
-    if scores['browInnerUp'] > 0.6 and scores['browDownRight'] > 0.6:
-        return "is confused"
+    # 3. CONCENTRATION (Narrowed eyes, slight brow lowering, mouth closed)
+    if scores['eyeSquintLeft'] > 0.4 and scores['eyeSquintRight'] > 0.4 and scores['browDownLeft'] > 0.3:
+        return "Concentration"
 
-    if scores['browOuterUpLeft'] > 0.6 and scores['browOuterUpRight'] > 0.6:
-        return "is engaged"
-        
-    if scores['eyeLookDownLeft'] > 0.6 or scores['eyeLookDownRight'] > 0.6:
-        return "is bored"
+    # 4. CONFUSION (Asymmetrical brow, squinting, or lip pursing)
+    if (scores['browInnerUp'] > 0.3 and scores['browDownLeft'] > 0.3) or scores['mouthPucker'] > 0.4:
+        return "Confusion"
+
+    # 5. ENGAGED (Widened eyes, slightly raised brows, leaning forward/up)
+    if scores['eyeWideLeft'] > 0.3 and scores['eyeWideRight'] > 0.3 and scores['browOuterUpLeft'] > 0.2:
+        return "Engaged"
+
+    # 6. BORED (Droopy lids, neutral mouth, slight jaw drop)
+    if scores['eyeLookDownLeft'] > 0.4 and scores['eyeLookDownRight'] > 0.4 and scores['jawOpen'] < 0.1:
+        return "Bored"
 
     return "is neutral"
 
