@@ -46,7 +46,7 @@ retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k
 # Phase 3: The LLM and Prompt
 # ---------------------------------------------------------
 # 6. Initialize your Gemma model via Ollama
-llm = ChatOllama(model="gemma3:270m", temperature=0.2)
+llm = ChatOllama(model="gemma3:4b", temperature=0.2)
 
 # 7. Create a custom Prompt Template
 # This dictates exactly how the LLM should behave using the retrieved data.
