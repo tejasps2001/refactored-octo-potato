@@ -1,0 +1,6 @@
+Engagement Score =
+    w1 * attention (face orientation)
+  + w2 * emotion (neutral/positive)
+  + w3 * gesture (note-taking / idle)
+
+That makes the project more academically valuable than just detection.
