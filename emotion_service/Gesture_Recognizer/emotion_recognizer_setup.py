@@ -3,7 +3,7 @@ from datetime import datetime
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
-model_path = "../../app/google_mediapipe_models/face_landmarker.task"
+model_path = "../google_mediapipe_models/face_landmarker.task"
 
 base_options = python.BaseOptions(model_asset_path=model_path)
 
@@ -18,13 +18,18 @@ def print_result(result:FaceLandmarkerResult, output_image:mp.Image, timestamp_m
 
 
 def record_result(result:FaceLandmarkerResult, output_image:mp.Image, timestamp_ms:int):
-    frame_count = 
-    if result.face_blendshapes and result.face_blendshapes[0]:
+    # frame_count = 
+    # if result.face_blendshapes and result.face_blendshapes[0]:
         # No need to check for the emptiness of the inner list in result.face_blendshapes[0] 
         # because if a face was detected, then there'll be at least one Category object inside.
             
+    # with open('emotion_detections.log', 'a') as f:
+    #     f.write(f"The subject is {predict_emotion(result_list)}.\n")
     with open('emotion_detections.log', 'a') as f:
-        f.write(f"The subject is {predict_emotion(result_list)}.\n")
+        if result.face_blendshapes and result.face_blendshapes[0]:
+        # No need to check for the emptiness of the inner list in result.face_blendshapes[0] 
+        # because if a face was detected, then there'll be at least one Category object inside.
+            f.write(f"The subject is {predict_emotion(result)}.\n")
 
 def predict_emotion(result):
     # Convert list of categories to a dict for easy access

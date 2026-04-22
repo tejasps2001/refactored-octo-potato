@@ -1,17 +1,24 @@
 #!/bin/bash
 
-VENV_PATH="./ai_tutor"
+# stop immediately if any command fails.
+set -e 
 
-# Check if the venv directory already exists
+# Extract the directory where this script is located
+cd "$(dirname "$0")"
+
+VENV_PATH=".venv"
+
 if [ ! -d "$VENV_PATH" ]; then
     echo "Creating virtual environment..."
     python3 -m venv "$VENV_PATH"
-    source "$VENV_PATH/bin/activate"
-    python3 -m pip install -r requirements.txt
-else
-    echo "Virtual environment already exists. Skipping the installation."
-    source "$VENV_PATH/bin/activate"
 fi
 
-cd ./Gesture_Recognizer
-python3 ./run_camera.py
+source "$VENV_PATH/bin/activate"
+
+# Pip is smart; if the packages are already installed, it will take 0.5 seconds to verify and move on.
+echo "Syncing dependencies..."
+pip install -r requirements.txt
+
+echo "Starting Emotion Service..."
+cd Gesture_Recognizer
+python3 run_camera.py

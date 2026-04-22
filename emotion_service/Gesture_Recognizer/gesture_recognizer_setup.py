@@ -3,7 +3,7 @@ from datetime import datetime
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
-model_path = '../../app/google_mediapipe_models/gesture_recognizer.task'
+model_path = '../google_mediapipe_models/gesture_recognizer.task'
 
 base_options = python.BaseOptions(model_asset_path=model_path)
 
