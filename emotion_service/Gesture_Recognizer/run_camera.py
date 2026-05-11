@@ -1,8 +1,13 @@
 import cv2
 import time
+import signal
 import mediapipe as mp
 from gesture_recognizer_setup import create_gesture_recognizer
 from emotion_recognizer_setup import create_emotion_recognizer
+
+# Tell Python to ignore terminal resize signals (SIGWINCH) so that the
+# camera feed doesn't abruptly close
+signal.signal(signal.SIGWINCH, signal.SIG_IGN)
 
 gesture_recognizer = create_gesture_recognizer()
 emotion_recognizer = create_emotion_recognizer()
@@ -23,13 +28,16 @@ emotion_timestamp_ms = 0
 # Infer emotions using a mode filter over multiple frames for better accuracy
 emotion_frames_count = 0
 
+# allow the camera feed window to be resized by the OS
+cv2.namedWindow('Camera Feed')
+
 while True:
     success, frame = cap.read()
     if not success:
         break
 
     # Show the camera feed in an image
-    cv2.imshow("Gesture Stream", frame)
+    cv2.imshow("Camera Feed", frame)
 
     # OpenCV gives frames in BGR format. MediaPipe expects RGB.
     # Convert BGR -> RGB
@@ -70,3 +78,4 @@ while True:
 cap.release()
 cv2.destroyAllWindows()
 gesture_recognizer.close()
+emotion_recognizer.close()
