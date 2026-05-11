@@ -25,13 +25,25 @@ if prompt := st.chat_input("Ask something about your documents..."):
     # 2. Display an empty assistant message while waiting
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("Thinking...")
+        message_placeholder.markdown("Checking student engagement & thinking...")
         
+        # Fetch emotion state
         try:
+            # Ping the tiny emotion API (Timeout set to 2 seconds so it doesn't hang)
+            emotion_res = requests.get("http://localhost:8001/current_emotion", timeout=2)
+            current_emotion = emotion_res.json().get("student_emotion", "neutral")
+        except requests.exceptions.RequestException:
+            # If the emotion API is off, just default to neutral and keep going
+            current_emotion = "neutral"
+        try:
+            payload = {
+                "question": prompt,
+                "student_emotion": current_emotion
+            }
             # Send the request to your FastAPI backend
             response = requests.post(
                 "http://localhost:8000/chat", 
-                json={"question": prompt}
+                json=payload
             )
             response.raise_for_status() # Check for HTTP errors
             

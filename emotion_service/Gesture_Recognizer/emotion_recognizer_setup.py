@@ -1,3 +1,4 @@
+import json
 import mediapipe as mp
 from datetime import datetime
 from mediapipe.tasks import python
@@ -19,9 +20,13 @@ def print_result(result:FaceLandmarkerResult, output_image:mp.Image, timestamp_m
 
 def record_result(result:FaceLandmarkerResult, output_image:mp.Image, timestamp_ms:int):
     # frame_count = 
-    # if result.face_blendshapes and result.face_blendshapes[0]:
         # No need to check for the emptiness of the inner list in result.face_blendshapes[0] 
         # because if a face was detected, then there'll be at least one Category object inside.
+
+    emotion = "Neutral" # Default state
+
+    if result.face_blendshapes and result.face_blendshapes[0]:
+        emotion = predict_emotion(result)    
             
     # with open('emotion_detections.log', 'a') as f:
     #     f.write(f"The subject is {predict_emotion(result_list)}.\n")
@@ -29,7 +34,14 @@ def record_result(result:FaceLandmarkerResult, output_image:mp.Image, timestamp_
         if result.face_blendshapes and result.face_blendshapes[0]:
         # No need to check for the emptiness of the inner list in result.face_blendshapes[0] 
         # because if a face was detected, then there'll be at least one Category object inside.
-            f.write(f"The subject is {predict_emotion(result)}.\n")
+            f.write(f"The subject is {emotion}.\n")
+
+    try:
+        with open('current_state.json', 'w') as f:
+            json.dump({"student_emotion": emotion}, f)
+    except Exception as e:
+        # Pass silently so that IO errors don't crash the camera feed
+        pass
 
 def predict_emotion(result):
     # Convert list of categories to a dict for easy access

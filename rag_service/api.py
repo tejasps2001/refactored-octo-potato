@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from operator import itemgetter
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings, ChatOllama
 from langchain_core.prompts import PromptTemplate
@@ -12,6 +13,7 @@ app = FastAPI(title="RAG API Backend")
 # 2. Define the expected data structure from the frontend
 class ChatRequest(BaseModel):
     question: str
+    student_emotion: str | None = "neutral" # Defaults to neutral if the camera is off
 
 # 3. Setup the LangChain Components globally so they load once
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
@@ -20,8 +22,10 @@ retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k
 
 llm = ChatOllama(model="gemma3:4b", temperature=0.2)
 
-template = """You are a helpful assistant. Use the following pieces of retrieved context to answer the question. 
-If you don't know the answer, just say that you don't know. 
+template = """You are a helpful teaching assistant. Use the retrieved context to answer the student's question. 
+CRITICAL INSTRUCTION: The camera detects that the student is currently feeling: {student_emotion}.
+If they are frustrated, be extra patient, break down the steps clearly, and offer encouragement.
+If they are engaged, provide a concise, technical answer.
 
 Context:
 {context}
@@ -36,7 +40,14 @@ def format_docs(docs):
 
 # The LCEL Pipeline
 rag_chain = (
-    {"context": retriever | format_docs, "question": RunnablePassthrough()}
+    {
+        # Grab the question from the RunnableParallel, pass it to the retriever, then format the docs
+        "context": itemgetter("question") | retriever | format_docs,
+        # Grab the question and pass it straight through
+        "question": itemgetter("question"),
+        # Grab the emotion and pass it straight through
+        "student_emotion": itemgetter("student_emotion")
+    }
     | prompt
     | llm
     | StrOutputParser()
@@ -45,9 +56,17 @@ rag_chain = (
 # 4. Create the API Endpoint
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
+    print(f"\n--- DEBUG: Received Emotion: {request.student_emotion} ---\n")
     try:
-        # Run the pipeline with the incoming question
-        answer = rag_chain.invoke(request.question)
+        # Package the data into a dict for the LCEL chain
+        payload = {
+            "question": request.question,
+            "student_emotion": request.student_emotion
+        }
+
+        # Run the pipeline with the full payload
+        answer = rag_chain.invoke(payload)
         return {"answer": answer}
     except Exception as e:
+        print(f"PIPELINE ERROR: {e}")
         raise HTTPException(status_code=500, detail=str(e))
