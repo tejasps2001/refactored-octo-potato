@@ -21,13 +21,6 @@ last_gesture_infer_time = 0.0
 gesture_interval = 200.0  # milliseconds
 gesture_timestamp_ms = 0
 
-# Do facial emotion recognition every 2 seconds
-last_emotion_infer_time = 0.0
-emotion_interval = 2000.0 # milliseconds
-emotion_timestamp_ms = 0
-# Infer emotions using a mode filter over multiple frames for better accuracy
-emotion_frames_count = 0
-
 # allow the camera feed window to be resized by the OS
 cv2.namedWindow('Camera Feed')
 
@@ -59,18 +52,10 @@ while True:
         last_gesture_infer_time = now
 
         # Send to recognizer (once per 200 milliseconds)
-        gesture_recognizer.recognize_async(mp_image, gesture_timestamp_ms)
-        gesture_timestamp_ms += int(gesture_interval)
+        gesture_recognizer.recognize_async(mp_image, int(now))
 
     # Emotion recognition
-    if now - last_emotion_infer_time >= emotion_interval:
-        # Send to recognizer (once per 2 seconds)
-        emotion_recognizer.detect_async(mp_image, emotion_timestamp_ms)
-        emotion_timestamp_ms += int(emotion_interval)
-        # 2 seconds => collect 30 frames for emotion recognition => 2 seconds and so on
-        if emotion_frames_count == 30:
-            last_emotion_infer_time = now
-            emotion_frames_count = 0
+    emotion_recognizer.detect_async(mp_image, int(now))
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
