@@ -6,11 +6,30 @@ from langchain_ollama import OllamaEmbeddings, ChatOllama
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
+import os
+
+from session_logger import SessionLogger
+from synchronizer import TemporalSynchronizer
 
 # 1. Initialize FastAPI
-app = FastAPI(title="RAG API Backend")
+app = FastAPI(title="Lecture Analysis API")
 
-# 2. Define the expected data structure from the frontend
+TRANSCRIPT_PATH = os.path.join(os.path.dirname(__file__), "data",
+                               "transcript.json")
+
+try:
+    synchronizer = TemporalSynchronizer(TRANSCRIPT_PATH)
+    db_logger = SessionLogger()
+    print("Synchronizer and Session Logger initialized successfully.")
+except Exception as e:
+    print(f"Initialization Error: {e}")
+
+# Pydantic Models for Data Validation
+# Define the expected data structure from the frontend
+class EmotionLogRequest(BaseModel):
+    video_timestamp: float
+    emotion_state: str
+
 class ChatRequest(BaseModel):
     question: str
     student_emotion: str | None = "neutral" # Defaults to neutral if the camera is off
@@ -53,7 +72,35 @@ rag_chain = (
     | StrOutputParser()
 )
 
-# 4. Create the API Endpoint
+# Create the API Endpoints
+@app.post("/log_engagement")
+async def log_engagement(payload: EmotionLogRequest):
+    """
+    Receive passive emotional engagement data while the student watches
+    the video, synchronize it with the transcript, and log it into the 
+    database.
+    """
+    try:
+        # Find what was being said at the exact moment
+        transcript_segment_dict = synchronizer.get_transcript_segment(
+            payload.video_timestamp
+        )
+
+        transcript_text = transcript_segment_dict.get(
+            "text", "[Silence/No dialogue]")
+
+        # Write the synchronized data to SQLite
+        db_logger.log_engagement(
+            video_timestamp=payload.video_timestamp,
+            emotion_state=payload.emotion_state,
+            transcript_segment=transcript_text
+        )
+        
+        return {"status": "success", "message": "Engagement logged securely."}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     print(f"\n--- DEBUG: Received Emotion: {request.student_emotion} ---\n")
