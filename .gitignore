@@ -7,5 +7,5 @@ chroma_db/
 
 *.log
 todo.txt
-*.json
-*.mp3
+
+rag_service/data/
