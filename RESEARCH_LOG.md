@@ -73,3 +73,53 @@ Answer:
       - Retrieved Context Chunks Count: 1
       - Injected Live Emotion: neutral
     ```
+
+## Milestone: Phase 3 (Struggle Tracking & Active Research Core)
+
+### 1. Architectural Mutated Files
+- **[session_logger.py](file:///home/tejasps/Documents/AI/refactored-octo-potato/rag_service/session_logger.py)**:
+  - Extended SQLite schema to include tables: `video_navigation_logs`, `chat_logs`, `struggle_logs`, and `post_video_questions` with a mandatory `session_id TEXT` column to isolate runs.
+  - Formulated an asynchronous queue-based sequential write worker utilizing a background daemon thread to prevent database lockups and collisions.
+  - Built getters to extract engagement spikes, navigation rewinds, chat history, and generated questions.
+- **[api.py](file:///home/tejasps/Documents/AI/refactored-octo-potato/rag_service/api.py)**:
+  - Created validation schemas for log navigation and QA generation requests.
+  - Implemented `@app.post("/log_navigation")` endpoint to receive scrubbing events and resolve them against the synchronizer.
+  - Modified `@app.post("/chat")` endpoint to save conversations to the chat history database.
+  - Formulated the `aggregate_struggles` helper to pull raw database logs and compile them into a unified Struggle Log.
+  - Built `@app.post("/generate_qa")` endpoint to parse struggles, extract vector contexts, prompt the LLM, parse responses using a robust regex/JSON fallback extractor, and log the generated questions as serialized JSON.
+
+### 2. The Prompt Blueprint
+```
+System: You are an expert AI Research Assistant. Your task is to analyze the student's Struggle Log and generate 3 custom, high-quality, concept-check test questions. 
+Target the specific topics or transcript segments where the student struggled (indicated by emotional spikes, video rewinds, or chat questions).
+You must use ONLY the provided Context notes to ensure correct facts.
+Format your output exactly as a JSON list of 3 strings, and nothing else.
+
+Context Notes:
+{context}
+
+Struggle Log:
+{struggle_log}
+
+Questions (JSON array of 3 strings):
+```
+
+### 3. Verification Trace
+- **POST `/generate_qa`**:
+  - Request: `curl -X POST http://localhost:8000/generate_qa -d '{"session_id": "session_alpha"}'`
+  - Output:
+    ```json
+    {
+      "questions": [
+        "What is the worst-case time complexity of Bubble Sort, and why does it typically have a higher complexity compared to other sorting algorithms?",
+        "Merge Sort utilizes a divide-and-conquer strategy and achieves a time complexity of O(n log n). Explain briefly what this 'divide-and-conquer' approach entails in the context of Merge Sort.",
+        "Binary search demands a sorted array to function correctly. Describe the time complexity of Binary search and why its performance is dependent on the input array being sorted."
+      ]
+    }
+    ```
+  - Trace Log:
+    ```
+    [DEBUG] [Aggregated Struggles Vector Count]: 3
+    [DEBUG] [Retrieved Vector Space Chunks]: 1
+    [DEBUG] [LLM Payload Handoff]: ...
+    ```
