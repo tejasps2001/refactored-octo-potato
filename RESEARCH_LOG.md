@@ -155,3 +155,20 @@ Questions (JSON array of 3 strings):
   [DEBUG] [LCEL Chain] Bound prompt payload state: {'context': 'Bubble Sort has a worst-case time complexity of O(n squared). It works by repeatedly swapping adjacent elements if they are in the wrong order.\n\nMerge Sort is a stable, comparison-based sorting algorithm with a time complexity of O(n log n) in all cases. It uses a divide-and-conquer strategy.\n\nBinary search requires a sorted array and runs in O(log n) time complexity.', 'question': 'What is the worst-case complexity of Bubble Sort?', 'student_emotion': 'Neutral'}
   INFO:     127.0.0.1:49064 - "POST /chat HTTP/1.1" 200 OK
   ```
+
+## Milestone: Phase 5 (Unified User Interface Integration)
+
+### 1. Architectural Mutated Files
+- **[app.py](file:///home/tejasps/Documents/AI/refactored-octo-potato/frontend/app.py)**:
+  - Formulated a two-column Streamlit dashboard layout containing an embedded HTML5 video player and a chat assistant.
+  - Implemented secure, throttled, and debounced window postMessage events within the player iframe.
+  - Built a parent-side web messaging listener that handles asynchronous metrics forwarding, SQLite DB logging, and hidden state variable propagation without blocking input draw loops.
+  - Created a researcher telemetry dashboard tracking Active Session ID, Current Playhead Position, Extracted Emotion State, and Queue Latency Metric.
+  - Added a dynamic calibration progress bar reading from local files.
+  - Formulated the bottom-row assessment block to invoke post-video check questions.
+
+### 2. Operational Layout & Decoupling
+- Streamlit remains completely stateless and runs isolated from subprocess camera thread initialization.
+- Camera vision loop and API services are executed separately in the background from the root bash script.
+- Cross-origin issues are avoided by using iframe message passing instead of direct raw AJAX calls to backend services inside the video component.
+
