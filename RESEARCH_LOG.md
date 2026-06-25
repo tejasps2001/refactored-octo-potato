@@ -123,3 +123,35 @@ Questions (JSON array of 3 strings):
     [DEBUG] [Retrieved Vector Space Chunks]: 1
     [DEBUG] [LLM Payload Handoff]: ...
     ```
+
+## Milestone: Phase 4 (Data Validation, Feedback Loop, & Calibration)
+
+### 1. Architectural Mutated Files
+- **[emotion_recognizer_setup.py](file:///home/tejasps/Documents/AI/refactored-octo-potato/emotion_service/core/emotion_recognizer_setup.py)**:
+  - Guarded `calibrate_scores` against divisions by zero during dynamic 10-second calibration.
+  - Added a structured Python dictionary that broadcasts the student's current emotion, calibration progress, and raw facial data at one-second intervals.
+  - Modified `record_result` to log raw key blendshape scores at 1-second intervals.
+- **[emotion_api.py](file:///home/tejasps/Documents/AI/refactored-octo-potato/emotion_service/emotion_api.py)**:
+  - Modified `/current_emotion` GET endpoint to load and expose the complete metrics.
+  - Integrated console trace prints showing payload dispatches.
+- **[api.py](file:///home/tejasps/Documents/AI/refactored-octo-potato/rag_service/api.py)**:
+  - Modified `fetch_live_emotion` to print microservice bridge traces.
+  - Implemented calibration state routing fallback, mapping the `"Calibrating..."` emotion state to `"Neutral"` in the prompt payload to prevent LLM stutter.
+  - Integrated explicit inline LCEL payload prints right before LLM handoff.
+
+### 2. Verification Trace
+- **Emotion API Backend Trace**:
+  ```
+  [DEBUG] [Bridge] Emotion payload dispatched: {'student_emotion': 'Calibrating...', 'calibration_progress': 0.45, 'raw_scores': {'browDownLeft': 0.3}}
+  INFO:     127.0.0.1:60254 - "GET /current_emotion HTTP/1.1" 200 OK
+  ```
+- **RAG Backend Telemetry Trace**:
+  ```
+  [DEBUG] [Bridge] Polled current emotion from service: Calibrating...
+  [DEBUG] Pipeline Inputs:
+    - Question: What is the worst-case complexity of Bubble Sort?
+    - Retrieved Context Chunks Count: 1
+    - Injected Live Emotion: Calibrating...
+  [DEBUG] [LCEL Chain] Bound prompt payload state: {'context': 'Bubble Sort has a worst-case time complexity of O(n squared). It works by repeatedly swapping adjacent elements if they are in the wrong order.\n\nMerge Sort is a stable, comparison-based sorting algorithm with a time complexity of O(n log n) in all cases. It uses a divide-and-conquer strategy.\n\nBinary search requires a sorted array and runs in O(log n) time complexity.', 'question': 'What is the worst-case complexity of Bubble Sort?', 'student_emotion': 'Neutral'}
+  INFO:     127.0.0.1:49064 - "POST /chat HTTP/1.1" 200 OK
+  ```

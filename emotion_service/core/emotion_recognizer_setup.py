@@ -25,7 +25,7 @@ calibration_data = []
 baseline_offsets = {}
 CALIBRATION_DURATION_MS = 10000  # 10 seconds
 
-# 3. NEW: Logging Rate Limiter
+# Logging Rate Limiter
 last_log_time_ms = 0
 LOG_INTERVAL_MS = 1000  # 1000 milliseconds = 1 second
 
@@ -38,7 +38,6 @@ def calibrate_scores(raw_scores, timestamp_ms):
         calibrated = {}
         for key, val in raw_scores.items():
             offset = baseline_offsets.get(key, 0.0)
-            # Prevent scores from going negative
             calibrated[key] = max(0.0, val - offset)
         return calibrated
 
@@ -53,8 +52,10 @@ def calibrate_scores(raw_scores, timestamp_ms):
     if (timestamp_ms - start_time_ms) >= CALIBRATION_DURATION_MS:
         keys = raw_scores.keys()
         for key in keys:
-            # Average the scores over the 10-second period
-            baseline_offsets[key] = sum(frame[key] for frame in calibration_data) / len(calibration_data)
+            if calibration_data:
+                baseline_offsets[key] = sum(frame[key] for frame in calibration_data) / len(calibration_data)
+            else:
+                baseline_offsets[key] = 0.0
         
         is_calibrated = True
         with open('emotion_detections.log', 'a') as f:
@@ -71,7 +72,6 @@ def get_smoothed_emotion(raw_emotion):
     if len(emotions_buffer) > BUFFER_SIZE:
         emotions_buffer.pop(0)
     
-    # Return the most frequent emotion in the buffer
     return max(set(emotions_buffer), key=emotions_buffer.count)
 
 def predict_emotion(scores):
@@ -117,38 +117,46 @@ def print_result(result:FaceLandmarkerResult, output_image:mp.Image, timestamp_m
         f.write(f"FACIAL RECOGNITION RESULT: {result}\n")
 
 def record_result(result:FaceLandmarkerResult, output_image:mp.Image, timestamp_ms:int):
-    global last_log_time_ms # CRITICAL: Pulls in the tracker
+    global last_log_time_ms, start_time_ms
     
-    emotion = "Calibrating..." 
+    emotion = "Calibrating..."
+    progress = 0.0
+    raw_scores = {}
 
     if result.face_blendshapes and result.face_blendshapes[0]:
-        # Convert list of categories to a dict for easy access
         raw_scores = {blendshape.category_name: blendshape.score for blendshape in result.face_blendshapes[0]}
 
-        # Step 1: Baseline Calibration
+        if start_time_ms is not None:
+            progress = min(1.0, (timestamp_ms - start_time_ms) / CALIBRATION_DURATION_MS)
+
         calibrated_scores = calibrate_scores(raw_scores, timestamp_ms)
 
-        # Step 2: Only predict and smooth once calibration is finished
         if is_calibrated:
+            progress = 1.0
             raw_emotion = predict_emotion(calibrated_scores)
             emotion = get_smoothed_emotion(raw_emotion)
 
         # --- THE 1-SECOND LOGGING THROTTLE ---
-        # Only write to the physical text file if 1000ms have passed
         if timestamp_ms - last_log_time_ms >= LOG_INTERVAL_MS:
+            key_scores_str = ", ".join(f"{k}: {v:.4f}" for k, v in raw_scores.items() if k in [
+                'browDownLeft', 'browDownRight', 'mouthPressLeft', 'mouthPressRight', 
+                'browInnerUp', 'mouthPucker', 'eyeSquintLeft', 'eyeSquintRight'
+            ])
             with open('emotion_detections.log', 'a') as f:
-                f.write(f"The subject is {emotion} at {timestamp_ms}ms.\n")
+                f.write(f"The subject is {emotion} at {timestamp_ms}ms. Progress: {progress:.2f}. Raw key scores: {key_scores_str}\n")
             
-            # Update the tracker to the current frame's timestamp
             last_log_time_ms = timestamp_ms
 
-    # --- THE LIVE JSON BROADCAST ---
-    # This remains OUTSIDE the throttle so your RAG API 
-    # always has instant access to the latest frame's data.
+    payload = {
+        "student_emotion": emotion,
+        "calibration_progress": progress,
+        "raw_scores": raw_scores
+    }
+    
     try:
         with open('current_state.json', 'w') as f:
-            json.dump({"student_emotion": emotion}, f)
-    except Exception as e:
+            json.dump(payload, f)
+    except Exception:
         pass
 
 def create_emotion_recognizer(running_mode=VisionRunningMode.LIVE_STREAM):
@@ -160,7 +168,6 @@ def create_emotion_recognizer(running_mode=VisionRunningMode.LIVE_STREAM):
             result_callback=record_result
         )
     else:
-        # Here, the running_mode is IMAGE
         options = FaceLandmarkerOptions(
             base_options = base_options,
             running_mode = running_mode,

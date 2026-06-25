@@ -6,14 +6,13 @@ app = FastAPI(title="Emotion State API")
 
 @app.get("/current_emotion")
 async def get_current_emotion():
-    # Check if the file exists (in case the API starts before the camera)
+    payload = {"student_emotion": "Neutral", "calibration_progress": 0.0, "raw_scores": {}}
     if os.path.exists("current_state.json"):
         try:
             with open("current_state.json", "r") as f:
-                return json.load(f)
-        except json.JSONDecodeError:
-            # Handle the microsecond where the file is being overwritten by the camera
-            return {"student_emotion": "neutral"}
-    
-    # Fallback if the camera hasn't written anything yet
-    return {"student_emotion": "neutral"}
+                payload = json.load(f)
+        except Exception:
+            pass
+            
+    print(f"[DEBUG] [Bridge] Emotion payload dispatched: {payload}")
+    return payload
