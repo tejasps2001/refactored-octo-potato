@@ -23,16 +23,15 @@ class SessionLogger:
         conn.commit()
         conn.close()
 
-    def log_engagement(self, video_timestamp:float, emotion_state: str, 
-                  transcript_segment: str):
+    def log_engagement(self, video_timestamp: float, emotion_state: str, 
+                      transcript_segment: str):
         """Insert a new synchronized data point into the database"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
         cursor.execute('''
-            INSERT INTO video_engagement_logs (timestamp, emotion_state,
-                transcript_segment) VALUES (?, ?, ?, ?)
-            )
+            INSERT INTO video_engagement_logs (video_timestamp, emotion_state,
+                transcript_segment) VALUES (?, ?, ?)
         ''', (video_timestamp, emotion_state, transcript_segment))
         
         conn.commit()

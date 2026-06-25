@@ -4,9 +4,10 @@ from operator import itemgetter
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings, ChatOllama
 from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough, RunnableParallel, RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
 import os
+import requests
 
 from session_logger import SessionLogger
 from synchronizer import TemporalSynchronizer
@@ -41,10 +42,13 @@ retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k
 
 llm = ChatOllama(model="gemma3:4b", temperature=0.2)
 
-template = """You are a helpful teaching assistant. Use the retrieved context to answer the student's question. 
+template = """You are a helpful teaching assistant. You must answer the student's question ONLY using the provided retrieved context from the lecture transcript and notes. Do not use any outside knowledge. If the answer to the question cannot be found or inferred from the provided context, you must output exactly: "This topic was not covered in the lecture material." and nothing else.
+
 CRITICAL INSTRUCTION: The camera detects that the student is currently feeling: {student_emotion}.
-If they are frustrated, be extra patient, break down the steps clearly, and offer encouragement.
-If they are engaged, provide a concise, technical answer.
+Adapt your pedagogical tone accordingly:
+- If they are feeling "Frustration" or "Confusion" (or related negative/struggling emotions), be extra patient, break down the steps clearly, offer encouragement, and guide them step-by-step.
+- If they are feeling "Engaged" or "Concentration" or "Joy", provide a concise, direct, and technical answer.
+- For other emotional states (like "Neutral", "Bored", "Note-Taking"), maintain a balanced, supportive, and clear explanation.
 
 Context:
 {context}
@@ -57,16 +61,42 @@ prompt = PromptTemplate.from_template(template)
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
+def fetch_live_emotion(inputs):
+    try:
+        response = requests.get("http://localhost:8001/current_emotion", timeout=1.0)
+        if response.status_code == 200:
+            return response.json().get("student_emotion", "Neutral")
+    except Exception:
+        pass
+    return inputs.get("student_emotion", "Neutral") or "Neutral"
+
+def retrieve_docs(inputs):
+    return retriever.invoke(inputs["question"])
+
+def print_telemetry_and_format(inputs):
+    question = inputs["question"]
+    docs = inputs["context_docs"]
+    emotion = inputs["student_emotion"]
+    
+    print("[DEBUG] Pipeline Inputs:")
+    print(f"  - Question: {question}")
+    print(f"  - Retrieved Context Chunks Count: {len(docs)}")
+    print(f"  - Injected Live Emotion: {emotion}")
+    
+    return {
+        "context": format_docs(docs),
+        "question": question,
+        "student_emotion": emotion
+    }
+
 # The LCEL Pipeline
 rag_chain = (
-    {
-        # Grab the question from the RunnableParallel, pass it to the retriever, then format the docs
-        "context": itemgetter("question") | retriever | format_docs,
-        # Grab the question and pass it straight through
+    RunnableParallel({
+        "context_docs": retrieve_docs,
         "question": itemgetter("question"),
-        # Grab the emotion and pass it straight through
-        "student_emotion": itemgetter("student_emotion")
-    }
+        "student_emotion": RunnableLambda(fetch_live_emotion)
+    })
+    | RunnableLambda(print_telemetry_and_format)
     | prompt
     | llm
     | StrOutputParser()
