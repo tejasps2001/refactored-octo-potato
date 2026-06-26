@@ -49,9 +49,9 @@ This system combines a local Retrieval-Augmented Generation (RAG) backend with a
 
    * [x] Automated environment bootstrapping and process management. 
 
-   * [ ] Integration of Emotion Service with RAG API (In Progress). 
+   * [x] Integration of Emotion Service with RAG API. 
 
-   * [ ] Fine-tuning of local LLM for educational pedagogy. 
+   * [x] Fine-tuning of local LLM for educational pedagogy. 
 
 ## Contributing
 
