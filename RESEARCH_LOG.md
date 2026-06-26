@@ -172,3 +172,44 @@ Questions (JSON array of 3 strings):
 - Camera vision loop and API services are executed separately in the background from the root bash script.
 - Cross-origin issues are avoided by using iframe message passing instead of direct raw AJAX calls to backend services inside the video component.
 
+## Milestone: Ingestion - Automated Multimedia Preprocessing
+
+### 1. Architectural Mutated Files
+- **[ingest.py](file:///home/tejasps/Documents/AI/refactored-octo-potato/rag_service/ingest.py)**:
+  - Extended multi-source discovery loop to accept `.mp3`, `.wav`, `.mp4`, `.mkv` files.
+  - Implemented an `ffmpeg` system dependency validation check using `which ffmpeg`.
+  - Added a deterministic selection routine prioritising video over audio, preventing database collisions.
+  - Implemented a caching mechanism matching the `filename` metadata in `transcript.json` to skip redundant Whisper model loads.
+  - Integrated subprocess-bound audio track extraction using `ffmpeg` with silent logs configuration.
+  - Programmed transcription using `faster-whisper` (base size on CPU with INT8 quantization).
+  - Integrated execution performance trace prints: `[DEBUG] [Ingestion Pipeline] Track Isolation Time: XXs | Whisper Processing Time: XXs`.
+  - Configured automatic RAG indexing to load the synthesized JSON transcript and commit document chunks to ChromaDB.
+- **[run.sh](file:///home/tejasps/Documents/AI/refactored-octo-potato/run.sh)**:
+  - Integrated automatic execution of the ingestion pipeline before launching uvicorn in the RAG startup block.
+
+### 2. Verification Trace
+- **First-run Execution (transcribing media file)**:
+  ```
+  Starting multimedia preprocessing for: ./data/SQL 1 Clip 1 [8Uxt9scWJBY].mkv
+  Initializing local faster-whisper base model (CPU, INT8)...
+  [DEBUG] [Ingestion Pipeline] Track Isolation Time: 0.67s | Whisper Processing Time: 48.25s
+  Transcription complete. Output saved to transcript.json.
+  Starting ingestion process...
+  Loading: ./data/lecture_notes.txt
+  Loading: ./data/SQL Part 1 - Basic Queries - Database Systems.pdf
+  Loading generated transcript: ./data/transcript.json
+  Embedding and saving to ChromaDB...
+  Ingestion complete. Database is ready.
+  ```
+- **Cached Execution (skipping Whisper processing)**:
+  ```
+  [DEBUG] [Ingestion Pipeline] Transcript for SQL 1 Clip 1 [8Uxt9scWJBY].mkv already exists. Skipping Whisper processing.
+  Starting ingestion process...
+  Loading: ./data/lecture_notes.txt
+  Loading: ./data/SQL Part 1 - Basic Queries - Database Systems.pdf
+  Loading generated transcript: ./data/transcript.json
+  Embedding and saving to ChromaDB...
+  Ingestion complete. Database is ready.
+  ```
+
+

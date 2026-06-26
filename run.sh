@@ -66,7 +66,7 @@ if [ -z "$CHOSEN_PYTHON" ]; then
 fi
 
 # Kill ghost processes upon exit
-trap 'echo -e "\n Shutting down..."; kill $(jobs -p) 2>/dev/null || true; echo "✨ Workspace cleared. Ports open."' EXIT
+trap 'echo -e "\n Shutting down..."; kill $(jobs -p) 2>/dev/null || true; echo "Worspace is cleared and ports are opened."' EXIT
 
 # Activate environments only for those that are actively needed
 if [ "$RUN_EMOTION_API" = true ] || [ "$RUN_CAMERA" = true ]; then
@@ -126,6 +126,10 @@ fi
 if [ "$RUN_RAG" = true ]; then
     cd "$RAG_DIR"
     source .venv/bin/activate
+    
+    echo "Running automated ingestion pipeline..."
+    python3 ingest.py
+    
     if [ "$RUN_FRONTEND" = true ]; then
         python3 -m uvicorn api:app --host 0.0.0.0 --port 8000 >/dev/null 2>&1 &
         echo "Background Thread: Vector Engine API active on Port 8000"
