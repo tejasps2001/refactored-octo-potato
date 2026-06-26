@@ -1,4 +1,6 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from operator import itemgetter
 from langchain_chroma import Chroma
@@ -16,6 +18,21 @@ from synchronizer import TemporalSynchronizer
 
 # 1. Initialize FastAPI
 app = FastAPI(title="Lecture Analysis API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/video")
+def get_video():
+    video_path = os.path.join(os.path.dirname(__file__), "data", "lecture.mp4")
+    if os.path.exists(video_path):
+        return FileResponse(video_path, media_type="video/mp4")
+    return {"error": "Video file not found"}
 
 TRANSCRIPT_PATH = os.path.join(os.path.dirname(__file__), "data",
                                "transcript.json")
@@ -52,7 +69,13 @@ embeddings = OllamaEmbeddings(model="nomic-embed-text")
 vectorstore = Chroma(persist_directory="./chroma_db", embedding_function=embeddings)
 retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
-llm = ChatOllama(model="gemma3:4b", temperature=0.2)
+llm = ChatOllama(
+    model="gemma3:4b", 
+    temperature=0.0,
+    num_predict=256,
+    num_ctx=2048,
+    num_thread=4
+)
 
 template = """You are a helpful teaching assistant. You must answer the student's question ONLY using the provided retrieved context from the lecture transcript and notes. Do not use any outside knowledge. If the answer to the question cannot be found or inferred from the provided context, you must output exactly: "This topic was not covered in the lecture material." and nothing else.
 
@@ -190,6 +213,7 @@ def aggregate_struggles(session_id: str) -> list[str]:
 # Create the API Endpoints
 @app.post("/log_engagement")
 async def log_engagement(payload: EmotionLogRequest):
+    print(f"[DIAGNOSTIC] RAG Service Ingest Point hit on route /log_engagement with payload: {payload.dict()}")
     """
     Receive passive emotional engagement data while the student watches
     the video, synchronize it with the transcript, and log it into the 
@@ -217,6 +241,7 @@ async def log_engagement(payload: EmotionLogRequest):
 
 @app.post("/log_navigation")
 async def log_navigation(payload: NavigationLogRequest):
+    print(f"[DIAGNOSTIC] RAG Service Ingest Point hit on route /log_navigation with payload: {payload.dict()}")
     """
     Receive video scrub/rewind events, synchronize the target timestamp, 
     and log the navigation event into the database.
@@ -238,6 +263,7 @@ async def log_navigation(payload: NavigationLogRequest):
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
+    print(f"[DIAGNOSTIC] RAG Service Ingest Point hit on route /chat with payload: {request.dict()}")
     print(f"\n--- DEBUG: Received Emotion: {request.student_emotion} ---\n")
     try:
         payload = {
@@ -308,3 +334,20 @@ Questions (JSON array of 3 strings):"""
     except Exception as e:
         print(f"[ERROR] QA Generation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/current_session_state")
+def get_current_session_state(session_id: str = "default_session"):
+    try:
+        telemetry = db_logger.get_latest_telemetry(session_id)
+        return telemetry
+    except Exception as e:
+        return {"playhead": 0.0, "emotion": "Neutral", "latency_ms": 0.0, "error": str(e)}
+
+@app.get("/telemetry_health_check")
+def telemetry_health_check(session_id: str = "default_session"):
+    try:
+        health = db_logger.get_telemetry_health(session_id)
+        print(f"[DIAGNOSTIC] Health Check requested: {health['count']} active metrics stored.")
+        return health
+    except Exception as e:
+        return {"count": 0, "latest_timestamp": 0.0, "error": str(e)}

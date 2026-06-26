@@ -1,7 +1,13 @@
+import sys
+import os
 import cv2
 import time
 import signal
 import mediapipe as mp
+
+# Add core directory to sys.path
+sys.path.append(os.path.join(os.path.dirname(__file__), 'core'))
+
 from gesture_recognizer_setup import create_gesture_recognizer
 from emotion_recognizer_setup import create_emotion_recognizer
 

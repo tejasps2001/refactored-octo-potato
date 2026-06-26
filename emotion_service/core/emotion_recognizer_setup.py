@@ -1,10 +1,12 @@
+import os
 import json
 import mediapipe as mp
 from datetime import datetime
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
-model_path = "../google_mediapipe_models/face_landmarker.task"
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+model_path = os.path.join(base_dir, 'google_mediapipe_models', 'face_landmarker.task')
 
 base_options = python.BaseOptions(model_asset_path=model_path)
 
@@ -101,7 +103,7 @@ def predict_emotion(scores):
     if scores.get('eyeSquintLeft', 0) > 0.4 and scores.get('eyeSquintRight', 0) > 0.4:
         return "Concentration"
 
-    # 5. JOY (Duchenne Smile)
+    # 5. JOY
     if scores.get('mouthSmileLeft', 0) > 0.5 and scores.get('mouthSmileRight', 0) > 0.5 and scores.get('cheekPuff', 0) > 0.2:
         return "Joy"
 

@@ -5,7 +5,18 @@ import threading
 
 class SessionLogger:
     def __init__(self, db_filename="session_data.sqlite3"):
-        self.db_path = os.path.join(os.path.dirname(__file__), db_filename)
+        self.db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), db_filename))
+        print(f"[DIAGNOSTIC] Initializing database at path: {self.db_path}")
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=2.0)
+            cursor = conn.cursor()
+            cursor.execute("BEGIN IMMEDIATE TRANSACTION;")
+            cursor.execute("SELECT 1;")
+            conn.commit()
+            conn.close()
+            print(f"[DIAGNOSTIC] Database engine lock verification: Success (Write-lock acquired on {self.db_path})")
+        except Exception as e:
+            print(f"[DIAGNOSTIC] Database engine lock verification: Failure on {self.db_path} - {e}")
         self._initialize_db()
         
         # Asynchronous queue and worker thread for thread-isolated sequential database writes
@@ -223,3 +234,57 @@ class SessionLogger:
         row = cursor.fetchone()
         conn.close()
         return row[0] if row else None
+
+    def get_latest_telemetry(self, session_id: str) -> dict:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT video_timestamp, emotion_state
+            FROM video_engagement_logs
+            WHERE session_id = ?
+            ORDER BY id DESC LIMIT 1
+        ''', (session_id,))
+        row = cursor.fetchone()
+        
+        cursor.execute('''
+            SELECT timestamp_to
+            FROM video_navigation_logs
+            WHERE session_id = ?
+            ORDER BY id DESC LIMIT 1
+        ''', (session_id,))
+        nav_row = cursor.fetchone()
+        conn.close()
+        
+        playhead = 0.0
+        emotion = "Neutral"
+        
+        if row:
+            playhead = row[0]
+            emotion = row[1]
+            
+        if nav_row and (not row or nav_row[0] > row[0]):
+            playhead = nav_row[0]
+            
+        return {
+            "playhead": playhead,
+            "emotion": emotion,
+            "latency_ms": 0.0
+        }
+
+    def get_telemetry_health(self, session_id: str) -> dict:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT COUNT(id), MAX(video_timestamp)
+            FROM video_engagement_logs
+            WHERE session_id = ?
+        ''', (session_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        count = row[0] if row else 0
+        latest_timestamp = row[1] if row and row[1] is not None else 0.0
+        return {
+            "count": count,
+            "latest_timestamp": latest_timestamp
+        }

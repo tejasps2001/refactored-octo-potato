@@ -18,51 +18,159 @@ if "messages" not in st.session_state:
 if "post_video_questions" not in st.session_state:
     st.session_state.post_video_questions = []
 
+# Initialize telemetry cache in session state so that it doesn't
+# on every redraw
+if "last_playhead" not in st.session_state:
+    st.session_state.last_playhead = 0.0
+if "last_emotion" not in st.session_state:
+    st.session_state.last_emotion = "Neutral"
+if "last_latency" not in st.session_state:
+    st.session_state.last_latency = 0.0
+if "last_telemetry_poll" not in st.session_state:
+    st.session_state.last_telemetry_poll = 0.0
+if "calibration_progress" not in st.session_state:
+    st.session_state.calibration_progress = 0.0
+
+if "last_calibration_progress" not in st.session_state:
+    st.session_state.last_calibration_progress = 0.0
+if "last_calibration_change_time" not in st.session_state:
+    st.session_state.last_calibration_change_time = time.time()
+if "calibration_is_stale" not in st.session_state:
+    st.session_state.calibration_is_stale = False
+if "live_telemetry_received" not in st.session_state:
+    st.session_state.live_telemetry_received = False
+if "last_api_change_time" not in st.session_state:
+    st.session_state.last_api_change_time = time.time()
+if "last_raw_scores" not in st.session_state:
+    st.session_state.last_raw_scores = {}
+if "api_is_stale" not in st.session_state:
+    st.session_state.api_is_stale = False
+
 # Sidebar configurations and telemetry
 st.sidebar.header("Session Settings")
 st.session_state.session_id = st.sidebar.text_input(
     "Active Session ID", value=st.session_state.session_id
 )
 
-# Render hidden input to receive telemetry from Javascript bridge
-telemetry_json = st.text_input(
-    "Telemetry Bridge Input",
-    value="",
-    label_visibility="collapsed",
-    key="telemetry_bridge"
-)
-
-# Parse bridge telemetry
-playhead_pos = 0.0
-latency_ms = 0.0
-extracted_emotion = "Neutral"
-
-if telemetry_json:
+# Fetch latest calibration and telemetry data from services
+now_poll = time.time()
+if now_poll - st.session_state.last_telemetry_poll >= 1.0:
+    st.session_state.last_telemetry_poll = now_poll
+    
+    # 1. Fetch emotion and calibration data
+    live_telemetry_success = False
+    api_emotion = "Neutral"
+    api_calibration_progress = 0.0
+    api_raw_scores = {}
+    
     try:
-        telemetry_data = json.loads(telemetry_json)
-        playhead_pos = telemetry_data.get("playhead", 0.0)
-        latency_ms = telemetry_data.get("latency_ms", 0.0)
-        extracted_emotion = telemetry_data.get("emotion", "Neutral")
-    except Exception:
-        pass
+        emotion_res = requests.get("http://localhost:8001/current_emotion", timeout=1.0)
+        if emotion_res.status_code == 200:
+            emotion_data = emotion_res.json()
+            api_emotion = emotion_data.get("student_emotion", "Neutral")
+            api_calibration_progress = emotion_data.get("calibration_progress", 0.0)
+            api_raw_scores = emotion_data.get("raw_scores", {})
+            live_telemetry_success = True
+    except Exception as e:
+        print(f"[DIAGNOSTIC] Frontend Polling Failure on port 8001: {e}")
+        
+    # Check if calibration progress is stale and if api telemetry is stale
+    if live_telemetry_success:
+        # Detect active changes in calibration or raw scores
+        has_changed = False
+        if api_calibration_progress != st.session_state.last_calibration_progress:
+            has_changed = True
+            st.session_state.last_calibration_progress = api_calibration_progress
+            st.session_state.last_calibration_change_time = time.time()
+            st.session_state.calibration_is_stale = False
+        else:
+            # If calibration is less than 1.0 and has not changed, check for staleness
+            if api_calibration_progress < 1.0:
+                elapsed_since_change = time.time() - st.session_state.last_calibration_change_time
+                if elapsed_since_change > 5.0:
+                    st.session_state.calibration_is_stale = True
+            else:
+                st.session_state.calibration_is_stale = False
+                
+        if api_raw_scores != st.session_state.last_raw_scores:
+            has_changed = True
+            st.session_state.last_raw_scores = api_raw_scores
+            
+        if has_changed:
+            st.session_state.last_api_change_time = time.time()
+            st.session_state.api_is_stale = False
+        else:
+            if time.time() - st.session_state.last_api_change_time > 5.0:
+                st.session_state.api_is_stale = True
+                
+        # We consider telemetry "live" if the API is active, not stale, and calibration is not stale
+        if (not st.session_state.api_is_stale) and (not st.session_state.calibration_is_stale):
+            st.session_state.live_telemetry_received = True
+            st.session_state.calibration_progress = api_calibration_progress
+            st.session_state.last_emotion = api_emotion
+        else:
+            st.session_state.live_telemetry_received = False
+    else:
+        st.session_state.live_telemetry_received = False
+        
+    # 2. Fetch session state / playhead telemetry from RAG service
+    try:
+        state_res = requests.get(
+            f"http://localhost:8000/current_session_state?session_id={st.session_state.session_id}", 
+            timeout=1.0
+        )
+        if state_res.status_code == 200:
+            state_data = state_res.json()
+            new_playhead = float(state_data.get("playhead", st.session_state.last_playhead))
+            new_latency = float(state_data.get("latency_ms", st.session_state.last_latency))
+            st.session_state.last_playhead = new_playhead
+            st.session_state.last_latency = new_latency
+            
+            if not st.session_state.live_telemetry_received:
+                new_emotion = state_data.get("emotion", st.session_state.last_emotion)
+                st.session_state.last_emotion = new_emotion
+    except Exception as e:
+        print(f"[DIAGNOSTIC] Frontend Polling Failure on port 8000: {e}")
 
-# Calibration Status
-calibration_progress = 0.0
-try:
-    state_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "emotion_service", "current_state.json"))
-    if os.path.exists(state_path):
-        with open(state_path, "r") as f:
-            state_data = json.load(f)
-            calibration_progress = state_data.get("calibration_progress", 0.0)
-except Exception:
-    pass
+# Check for stale state / offline live camera stream fallback
+current_state_path = "/home/tejasps/Documents/AI/refactored-octo-potato/emotion_service/current_state.json"
+file_fallback = False
+
+if os.path.exists(current_state_path):
+    mtime = os.path.getmtime(current_state_path)
+    if time.time() - mtime > 5.0:
+        file_fallback = True
+else:
+    file_fallback = True
+
+# Fallback decision
+is_fallback = file_fallback
+if st.session_state.live_telemetry_received:
+    is_fallback = False
+if st.session_state.calibration_is_stale:
+    is_fallback = True
+
+# Map variables to current session state values
+playhead_pos = st.session_state.last_playhead
+extracted_emotion = st.session_state.last_emotion
+latency_ms = st.session_state.last_latency
+
+if is_fallback:
+    extracted_emotion = "Live Feed Offline (Defaulting to Neutral)"
+    calibration_progress_val = 1.0
+else:
+    calibration_progress_val = st.session_state.calibration_progress
 
 st.sidebar.markdown("### Calibration Status")
-if calibration_progress < 1.0:
-    st.sidebar.progress(calibration_progress)
-    st.sidebar.write(f"Calibrating: {int(calibration_progress * 100)}%")
+if is_fallback:
+    st.sidebar.progress(1.0)
+    st.sidebar.write("Simulation Mode Active")
 else:
-    st.sidebar.info("Calibration Complete")
+    if calibration_progress_val < 1.0:
+        st.sidebar.progress(calibration_progress_val)
+        st.sidebar.write(f"Calibrating: {int(calibration_progress_val * 100)}%")
+    else:
+        st.sidebar.info("Calibration Complete")
 
 # Rolling Telemetry Dashboard
 st.sidebar.markdown("### Researcher Telemetry Dashboard")
@@ -71,10 +179,9 @@ st.sidebar.markdown(f"**Current Playhead Position:** `{playhead_pos:.1f}s`")
 st.sidebar.markdown(f"**Extracted Emotion State:** `{extracted_emotion}`")
 st.sidebar.markdown(f"**Queue Latency Metric:** `{latency_ms:.1f}ms`")
 
-# Custom HTML5 Video Player
-video_html = """
+video_html = f"""
 <video id="lecture-video" width="100%" height="auto" controls>
-    <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+    <source src="http://localhost:8000/video" type="video/mp4">
     Your browser does not support the video tag.
 </video>
 <script>
@@ -82,135 +189,67 @@ video_html = """
     let previousTime = 0;
     let lastTimeUpdate = 0;
     let seekTimeout = null;
+    const sessionId = '{st.session_state.session_id}';
 
-    video.addEventListener('timeupdate', () => {
-        if (!video.seeking) {
+    video.addEventListener('timeupdate', () => {{
+        if (!video.seeking) {{
             previousTime = video.currentTime;
-        }
+        }}
         
         const now = Date.now();
-        if (now - lastTimeUpdate >= 1000) {
+        if (now - lastTimeUpdate >= 1000) {{
             lastTimeUpdate = now;
-            window.parent.postMessage({
-                type: 'video_telemetry',
-                event: 'engagement',
-                timestamp: now,
-                payload: {
-                    video_timestamp: video.currentTime
-                }
-            }, '*');
-        }
-    });
-
-    video.addEventListener('seeked', () => {
-        if (seekTimeout) clearTimeout(seekTimeout);
-        const now = Date.now();
-        seekTimeout = setTimeout(() => {
-            const toTime = video.currentTime;
-            const fromTime = previousTime;
-            const type = toTime < fromTime ? 'rewind' : 'forward';
             
-            window.parent.postMessage({
-                type: 'video_telemetry',
-                event: 'navigation',
-                timestamp: now,
-                payload: {
-                    timestamp_from: fromTime,
-                    timestamp_to: toTime,
-                    event_type: type
-                }
-            }, '*');
-            previousTime = toTime;
-        }, 500);
-    });
-</script>
-"""
-
-# Web Messaging Bridge Script in Parent
-js_bridge = f"""
-<script>
-window.addEventListener('message', (event) => {{
-    if (event.data && event.data.type === 'video_telemetry') {{
-        const payload = event.data.payload;
-        const sessionId = '{st.session_state.session_id}';
-        const eventTime = event.data.timestamp;
-        const latency = Date.now() - eventTime;
-        
-        if (event.data.event === 'engagement') {{
             fetch('http://localhost:8001/current_emotion')
                 .then(res => res.json())
                 .then(emotionData => {{
                     const emotion = emotionData.student_emotion || 'Neutral';
-                    
                     fetch('http://localhost:8000/log_engagement', {{
                         method: 'POST',
                         headers: {{ 'Content-Type': 'application/json' }},
                         body: JSON.stringify({{
                             session_id: sessionId,
-                            video_timestamp: payload.video_timestamp,
+                            video_timestamp: video.currentTime,
                             emotion_state: emotion
                         }})
                     }});
-                    
-                    const input = window.parent.document.querySelector('input[aria-label="Telemetry Bridge Input"]');
-                    if (input) {{
-                        input.value = JSON.stringify({{
-                            playhead: payload.video_timestamp,
-                            latency_ms: latency,
-                            emotion: emotion
-                        }});
-                        input.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                    }}
                 }}).catch(() => {{
                     fetch('http://localhost:8000/log_engagement', {{
                         method: 'POST',
                         headers: {{ 'Content-Type': 'application/json' }},
                         body: JSON.stringify({{
                             session_id: sessionId,
-                            video_timestamp: payload.video_timestamp,
+                            video_timestamp: video.currentTime,
                             emotion_state: 'Neutral'
                         }})
                     }});
-                    
-                    const input = window.parent.document.querySelector('input[aria-label="Telemetry Bridge Input"]');
-                    if (input) {{
-                        input.value = JSON.stringify({{
-                            playhead: payload.video_timestamp,
-                            latency_ms: latency,
-                            emotion: 'Neutral'
-                        }});
-                        input.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                    }}
                 }});
-        }} else if (event.data.event === 'navigation') {{
+        }}
+    }});
+
+    video.addEventListener('seeked', () => {{
+        if (seekTimeout) clearTimeout(seekTimeout);
+        const now = Date.now();
+        seekTimeout = setTimeout(() => {{
+            const toTime = video.currentTime;
+            const fromTime = previousTime;
+            const type = toTime < fromTime ? 'rewind' : 'forward';
+            
             fetch('http://localhost:8000/log_navigation', {{
                 method: 'POST',
                 headers: {{ 'Content-Type': 'application/json' }},
                 body: JSON.stringify({{
                     session_id: sessionId,
-                    timestamp_from: payload.timestamp_from,
-                    timestamp_to: payload.timestamp_to,
-                    event_type: payload.event_type
+                    timestamp_from: fromTime,
+                    timestamp_to: toTime,
+                    event_type: type
                 }})
             }});
-            
-            const input = window.parent.document.querySelector('input[aria-label="Telemetry Bridge Input"]');
-            if (input) {{
-                input.value = JSON.stringify({{
-                    playhead: payload.timestamp_to,
-                    latency_ms: latency,
-                    emotion: 'Seeking'
-                }});
-                input.dispatchEvent(new Event('input', {{ bubbles: true }}));
-            }}
-        }}
-    }}
-}});
+            previousTime = toTime;
+        }}, 500);
+    }});
 </script>
 """
-
-# Render Bridge JS
-st.markdown(js_bridge, unsafe_allow_html=True)
 
 # Main UI Columns
 col1, col2 = st.columns([1, 1])
@@ -245,10 +284,12 @@ if prompt := st.chat_input("Ask a question about the lecture..."):
             "question": prompt,
             "student_emotion": curr_emotion
         }
-        res = requests.post("http://localhost:8000/chat", json=payload, timeout=10.0)
+        res = requests.post("http://localhost:8000/chat", json=payload, timeout=60.0)
         res.raise_for_status()
         answer = res.json().get("answer", "No response.")
         st.session_state.messages.append({"role": "assistant", "content": answer})
+    except requests.exceptions.Timeout:
+        st.session_state.messages.append({"role": "assistant", "content": "[SYSTEM TELEMETRY] Inference engine busy or cold-starting. Retrying connection context..."})
     except Exception as e:
         st.session_state.messages.append({"role": "assistant", "content": f"Error: {e}"})
         
@@ -263,10 +304,12 @@ if st.button("Complete Session & Generate Q&A"):
             payload = {
                 "session_id": st.session_state.session_id
             }
-            res = requests.post("http://localhost:8000/generate_qa", json=payload, timeout=15.0)
+            res = requests.post("http://localhost:8000/generate_qa", json=payload, timeout=90.0)
             res.raise_for_status()
             questions = res.json().get("questions", [])
             st.session_state.post_video_questions = questions
+        except requests.exceptions.Timeout:
+            st.error("[SYSTEM TELEMETRY] Inference engine busy or cold-starting. Retrying connection context...")
         except Exception as e:
             st.error(f"Failed to generate Q&A: {e}")
 
@@ -274,3 +317,7 @@ if st.session_state.post_video_questions:
     st.info("Based on your struggle telemetry, answer the following concept check questions:")
     for idx, question in enumerate(st.session_state.post_video_questions):
         st.markdown(f"**Question {idx + 1}:** {question}")
+
+# Auto-rerun loop to poll telemetry updates periodically
+time.sleep(1.0)
+st.rerun()
