@@ -45,6 +45,7 @@ except Exception as e:
     print(f"Initialization Error: {e}")
 
 # Pydantic Models for Data Validation
+# # Define the expected data structure from the frontend
 class EmotionLogRequest(BaseModel):
     session_id: str = "default_session"
     video_timestamp: float
@@ -53,7 +54,7 @@ class EmotionLogRequest(BaseModel):
 class ChatRequest(BaseModel):
     session_id: str = "default_session"
     question: str
-    student_emotion: str | None = "neutral"
+    student_emotion: str | None = "neutral" # Defaults to neutral if the camera is off
 
 class NavigationLogRequest(BaseModel):
     session_id: str = "default_session"

@@ -97,7 +97,7 @@ fi
 if [ "$RUN_EMOTION_API" = true ]; then
     cd "$EMOTION_DIR"
     source .venv/bin/activate
-    # Runs in background if other services are following; else runs in foreground
+    # Run in the background if other services are following; else run in the foreground
     if [ "$RUN_CAMERA" = true ] || [ "$RUN_RAG" = true ] || [ "$RUN_FRONTEND" = true ]; then
         python3 -m uvicorn emotion_api:app --host 0.0.0.0 --port 8001 >/dev/null 2>&1 &
         echo "Background Thread: Emotion Broadcaster Service active on Port 8001"
