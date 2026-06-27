@@ -1,61 +1,66 @@
 # Emotionally Aware RAG Tutor
-## Status: Work in Progress
 
-A localized RAG pipeline that integrates computer vision to understand student engagement and provide tailored educational responses. 
+A localized, multi-modal Retrieval-Augmented Generation (RAG) pedagogy tutor that integrates real-time computer vision and speech transcription to observe student engagement and dynamically adapt its pedagogical responses.
+
 ## Overview
 
-This system combines a local Retrieval-Augmented Generation (RAG) backend with a computer vision service that tracks facial blendshapes. By analyzing emotional states like frustration or concentration, the tutor adapts its pedagogical tone to better support student learning. 
+This system combines a local syllabus-bound RAG assistant (powered by Ollama and LangChain) with a real-time face tracking service (MediaPipe). By monitoring the student's facial expressions and video navigation behavior, the tutor identifies learning struggles, logs engagement telemetry to a SQLite database, adjusts its pedagogical explanation style, and prompts the student with concept-check assessments to reinforce understanding.
+
 ## Features
 
-* **Local RAG Pipeline**: Uses LangChain Expression Language (LCEL) and ChromaDB for privacy-focused document querying. 
-
-* **Emotion Recognition**: MediaPipe-based service that calculates engagement metrics in real-time. 
-
-* **Decoupled Architecture**: Distributed microservice design featuring a FastAPI backend and a Streamlit frontend. 
-
-* **Cross-Service Communication**: Future-ready API contracts that allow the vision service to inject emotional context into the LLM prompt. 
+* **Syllabus-Bound Local RAG**: Restricts LLM responses strictly to retrieved course lecture transcripts and notes. Adapts explanation tone and detail based on the student's detected emotion (e.g., patient walkthroughs for frustration/confusion, concise technical responses for high concentration/engagement).
+* **Automated Ingestion Pipeline**: Automatically processes PDFs, text notes, and video audio tracks (using Whisper transcriptions) on startup, chunking and embedding the content into ChromaDB.
+* **Struggle Tracking & Analytics**: Logs navigation actions (rewinds/scrubs), and emotion timelines into SQLite. Analyzes temporal data to detect repeated review patterns and automatically generates concept-check questions addressing high-struggle topics.
+* **Unified Streamlit Interface**: Provides a synchronized video player, real-time researcher metrics (latency, current playhead, extracted emotion state), interactive chat, and a post-session assessment dashboard.
+* **Stabilized Telemetry & Simulation Mode**: Uses non-blocking polling endpoints. Includes an automatic offline fallback mode that activates when the camera process is stopped or telemetry data becomes stale, defaulting the UI gracefully to neutral simulation metrics.
+* **Unified Orchestrator**: Simplifies startup via a root controller script (`run.sh`) handling environment verification, virtual env builds, port cleanup traps, and multi-service lifecycle control.
 
 ## Tech Stack
-| Category |	Technology |
-| -------- | ----------- |
-| Language | Python 3.13 |
-| LLM / Embeddings	| Ollama (Gemma 3 4B), Nomic Embed |
-| Orchestration	| LangChain (LCEL) |
-| API Framework	| FastAPI |
-| Frontend	| Streamlit |
-| Vision/ML	| MediaPipe, TensorFlow |
-| Database|	ChromaDB |
 
+| Category | Technology |
+| --- | --- |
+| Inference & LLM | Ollama (Gemma 3 4B, Nomic Embed Text) |
+| Ingestion & Transcription | Faster-Whisper (CPU INT8), PyPDF, ChromaDB |
+| RAG Framework | LangChain Expression Language (LCEL) |
+| APIs & Storage | FastAPI, SQLite3 (Thread-Isolated Async Writes) |
+| Vision & Tracking | MediaPipe Task Vision, OpenCV |
+| Interface | Streamlit (Non-blocking polling updates) |
 
 ## Getting Started
+
 ### Prerequisites
-* Linux (Developed on) or Windows (Compatible). 
-* Python 3.10+ installed.
-* Ollama with `gemma3:4b` and `nomic-embed-text` models. 
+* Linux (Ubuntu/Debian recommended)
+* Python 3.9 - 3.12
+* Ollama with `gemma3:4b` and `nomic-embed-text` installed and running
 
-### Installation
+### Quick Start
 
-1. **Clone the repository**: `git clone https://github.com/tejasps2001/refactored-octo-potato/tree/master`
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/tejasps2001/refactored-octo-potato.git
+   cd refactored-octo-potato
+   ```
 
-2. **Initialize Environments**: Use the provided bootstrap scripts to create isolated virtual environments for both the RAG and Emotion services.
-    * `./emotion_service/run.sh `
-    * `./run_rag.sh`
+2. Run the unified launcher script:
+   Run without flags to start all services:
+   ```bash
+   ./run.sh
+   ```
+   Or use the `-e`, `-r`, `-f`, and `-c` flags to start the Emotion API, RAG API, Streamlit Frontend, and Camera Vision Loop respectively:
+   ```bash
+   ./run.sh -e -r -f -c
+   ```
 
-## Roadmap
+3. Access the Streamlit dashboard:
+   Open your browser and navigate to `http://localhost:8501`.
 
-  *  [x] Initial project setup and RAG script prototype. 
+### Unified Launcher Flags
+* `-e`: Spawns the Emotion Broadcaster API (Port 8001)
+* `-r`: Spawns the RAG Vector Engine API (Port 8000)
+* `-f`: Spawns the Streamlit Interface (Port 8501)
+* `-c`: Spawns the MediaPipe Camera Loop
+* `-h`: Shows the help message
 
-   * [x] Microservice refactoring (FastAPI + Streamlit). 
-
-   * [x] Automated environment bootstrapping and process management. 
-
-   * [x] Integration of Emotion Service with RAG API. 
-
-   * [x] Fine-tuning of local LLM for educational pedagogy. 
-
-## Contributing
-
-Contributions are welcome. Please ensure that all dependencies are updated in the relevant ```requirements.txt``` files and avoid committing system-specific binaries or databases by respecting the ```.gitignore```. 
 ## License
 
 This project is licensed under the MIT License.
