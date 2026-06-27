@@ -9,3 +9,8 @@ chroma_db/
 todo.txt
 
 rag_service/data/
+
+# Local runtime state and databases
+emotion_service/current_state.json
+rag_service/session_data.sqlite3
+rag_service/data_backup/
