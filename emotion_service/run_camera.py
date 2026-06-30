@@ -28,15 +28,25 @@ gesture_interval = 200.0  # milliseconds
 gesture_timestamp_ms = 0
 
 # allow the camera feed window to be resized by the OS
-cv2.namedWindow('Camera Feed')
+has_gui = True
+try:
+    cv2.namedWindow('Camera Feed')
+except Exception:
+    has_gui = False
 
 while True:
     success, frame = cap.read()
     if not success:
-        break
+        # Sleep briefly if no camera frame is received to prevent busy waiting
+        time.sleep(0.1)
+        continue
 
     # Show the camera feed in an image
-    cv2.imshow("Camera Feed", frame)
+    if has_gui:
+        try:
+            cv2.imshow("Camera Feed", frame)
+        except Exception:
+            has_gui = False
 
     # OpenCV gives frames in BGR format. MediaPipe expects RGB.
     # Convert BGR -> RGB
@@ -63,10 +73,21 @@ while True:
     # Emotion recognition
     emotion_recognizer.detect_async(mp_image, int(now))
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+    if has_gui:
+        try:
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        except Exception:
+            has_gui = False
+    else:
+        # Sleep slightly to prevent high CPU usage in headless mode
+        time.sleep(0.01)
 
 cap.release()
-cv2.destroyAllWindows()
+if has_gui:
+    try:
+        cv2.destroyAllWindows()
+    except Exception:
+        pass
 gesture_recognizer.close()
 emotion_recognizer.close()
