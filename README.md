@@ -13,7 +13,7 @@ This system combines a local syllabus-bound RAG assistant (powered by Ollama and
 * **Struggle Tracking & Analytics**: Logs navigation actions (rewinds/scrubs), and emotion timelines into SQLite. Analyzes temporal data to detect repeated review patterns and automatically generates concept-check questions addressing high-struggle topics.
 * **Unified Streamlit Interface**: Provides a synchronized video player, real-time researcher metrics (latency, current playhead, extracted emotion state), interactive chat, and a post-session assessment dashboard.
 * **Stabilized Telemetry & Simulation Mode**: Uses non-blocking polling endpoints. Includes an automatic offline fallback mode that activates when the camera process is stopped or telemetry data becomes stale, defaulting the UI gracefully to neutral simulation metrics.
-* **Unified Orchestrator**: Simplifies startup via a root controller script (`run.sh`) handling environment verification, virtual env builds, port cleanup traps, and multi-service lifecycle control.
+* **Unified Orchestrator**: Simplifies startup via a cross-platform root controller script (`run_all.py`) handling environment verification, virtual env builds, port cleanup, and multi-service lifecycle control.
 
 ## Tech Stack
 
@@ -29,7 +29,7 @@ This system combines a local syllabus-bound RAG assistant (powered by Ollama and
 ## Getting Started
 
 ### Prerequisites
-* Linux (Ubuntu/Debian recommended)
+* Windows, Linux, or macOS
 * Python 3.9 - 3.12
 * Ollama with `gemma3:4b` and `nomic-embed-text` installed and running
 
@@ -43,23 +43,30 @@ This system combines a local syllabus-bound RAG assistant (powered by Ollama and
 
 2. Run the unified launcher script:
    Run without flags to start all services:
+   On Linux/macOS:
    ```bash
-   ./run.sh
+   python3 run_all.py
    ```
-   Or use the `-e`, `-r`, `-f`, and `-c` flags to start the Emotion API, RAG API, Streamlit Frontend, and Camera Vision Loop respectively:
+   On Windows:
+   ```cmd
+   python run_all.py
+   ```
+
+   Or use individual flags to start specific services:
    ```bash
-   ./run.sh -e -r -f -c
+   python3 run_all.py -e -r -f -c
    ```
 
 3. Access the Streamlit dashboard:
    Open your browser and navigate to `http://localhost:8501`.
 
 ### Unified Launcher Flags
-* `-e`: Spawns the Emotion Broadcaster API (Port 8001)
-* `-r`: Spawns the RAG Vector Engine API (Port 8000)
-* `-f`: Spawns the Streamlit Interface (Port 8501)
-* `-c`: Spawns the MediaPipe Camera Loop
-* `-h`: Shows the help message
+* `-e`, `--emotion-api`: Spawns the Emotion Broadcaster API (Port 8001)
+* `-r`, `--rag`: Spawns the RAG Vector Engine API (Port 8000)
+* `-f`, `--frontend`, `--ui`: Spawns the Streamlit Interface (Port 8501)
+* `-c`, `--camera`: Spawns the MediaPipe Camera Loop
+* `--backend`: Spawns both RAG and Emotion backends
+* `-h`, `--help`: Shows the help message
 
 ## License
 
