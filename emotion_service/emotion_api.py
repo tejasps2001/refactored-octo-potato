@@ -23,5 +23,7 @@ async def get_current_emotion():
         except Exception:
             pass
             
-    print(f"[DEBUG] [Bridge] Emotion payload dispatched: {payload}")
+    # Print a clean summary instead of dumping all 52 raw_scores
+    summary = {k: v for k, v in payload.items() if k != "raw_scores"}
+    print(f"[DEBUG] [Bridge] Emotion payload dispatched: {summary}")
     return payload

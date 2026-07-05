@@ -53,7 +53,7 @@ def transcribe_audio(file_path: str, output_path: str, model_size: str = "medium
 # --- Execution Block ---
 if __name__ == "__main__":
     # Define where your input files live and where the JSON should go
-    input_file = "./data/lecture_01.mp3" # Update this to match your actual file path
+    input_file = "./data/lecture.mp4" # Update this to match your actual file path
     output_json = "./data/transcript.json"
     
     # Ensure the data directory exists

@@ -8,6 +8,25 @@ import time
 st.set_page_config(page_title="Lecture Analysis RAG Tutor", page_icon="🎙️")
 st.title("Lecture Analysis RAG Tutor")
 
+# Inject custom CSS to disable the fade-out/flicker effect when st.fragment reruns
+st.markdown(
+    """
+    <style>
+    /* Prevent fading/opacity changes on fragment reruns and stale states */
+    [data-testid="stFragment"],
+    [data-testid="stFragment"] *,
+    [data-st-mode="stale"],
+    [data-st-mode="stale"] *,
+    [data-st-mode="running"],
+    [data-st-mode="running"] * {
+        opacity: 1 !important;
+        transition: none !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # Initialize session state variables
 if "session_id" not in st.session_state:
     st.session_state.session_id = f"session_{int(time.time())}"
@@ -52,9 +71,10 @@ st.session_state.session_id = st.sidebar.text_input(
     "Active Session ID", value=st.session_state.session_id
 )
 
-# Fetch latest calibration and telemetry data from services
-now_poll = time.time()
-if now_poll - st.session_state.last_telemetry_poll >= 1.0:
+@st.fragment(run_every=1.0)
+def show_sidebar_dashboard():
+    # Fetch latest calibration and telemetry data from services
+    now_poll = time.time()
     st.session_state.last_telemetry_poll = now_poll
     
     # 1. Fetch emotion and calibration data
@@ -132,52 +152,57 @@ if now_poll - st.session_state.last_telemetry_poll >= 1.0:
     except Exception as e:
         print(f"[DIAGNOSTIC] Frontend Polling Failure on port 8000: {e}")
 
-# Check for stale state / offline live camera stream fallback
-current_state_path = "/home/tejasps/Documents/AI/refactored-octo-potato/emotion_service/current_state.json"
-file_fallback = False
+    # Check for stale state / offline live camera stream fallback
+    current_state_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "emotion_service", "current_state.json"))
+    file_fallback = False
 
-if os.path.exists(current_state_path):
-    mtime = os.path.getmtime(current_state_path)
-    if time.time() - mtime > 5.0:
-        file_fallback = True
-else:
-    file_fallback = True
-
-# Fallback decision
-is_fallback = file_fallback
-if st.session_state.live_telemetry_received:
-    is_fallback = False
-if st.session_state.calibration_is_stale:
-    is_fallback = True
-
-# Map variables to current session state values
-playhead_pos = st.session_state.last_playhead
-extracted_emotion = st.session_state.last_emotion
-latency_ms = st.session_state.last_latency
-
-if is_fallback:
-    extracted_emotion = "Live Feed Offline (Defaulting to Neutral)"
-    calibration_progress_val = 1.0
-else:
-    calibration_progress_val = st.session_state.calibration_progress
-
-st.sidebar.markdown("### Calibration Status")
-if is_fallback:
-    st.sidebar.progress(1.0)
-    st.sidebar.write("Simulation Mode Active")
-else:
-    if calibration_progress_val < 1.0:
-        st.sidebar.progress(calibration_progress_val)
-        st.sidebar.write(f"Calibrating: {int(calibration_progress_val * 100)}%")
+    if os.path.exists(current_state_path):
+        mtime = os.path.getmtime(current_state_path)
+        if time.time() - mtime > 5.0:
+            file_fallback = True
     else:
-        st.sidebar.info("Calibration Complete")
+        file_fallback = True
 
-# Rolling Telemetry Dashboard
-st.sidebar.markdown("### Researcher Telemetry Dashboard")
-st.sidebar.markdown(f"**Active Session ID:** `{st.session_state.session_id}`")
-st.sidebar.markdown(f"**Current Playhead Position:** `{playhead_pos:.1f}s`")
-st.sidebar.markdown(f"**Extracted Emotion State:** `{extracted_emotion}`")
-st.sidebar.markdown(f"**Queue Latency Metric:** `{latency_ms:.1f}ms`")
+    # Fallback decision
+    is_fallback = file_fallback
+    if st.session_state.live_telemetry_received:
+        is_fallback = False
+    if st.session_state.calibration_is_stale:
+        is_fallback = True
+
+    # Map variables to current session state values
+    playhead_pos = st.session_state.last_playhead
+    extracted_emotion = st.session_state.last_emotion
+    latency_ms = st.session_state.last_latency
+
+    if is_fallback:
+        extracted_emotion = "Live Feed Offline (Defaulting to Neutral)"
+        calibration_progress_val = 1.0
+    else:
+        calibration_progress_val = st.session_state.calibration_progress
+
+    st.markdown("### Calibration Status")
+    if is_fallback:
+        st.progress(1.0)
+        st.write("Simulation Mode Active")
+    else:
+        if calibration_progress_val < 1.0:
+            st.progress(calibration_progress_val)
+            st.write(f"Calibrating: {int(calibration_progress_val * 100)}%")
+        else:
+            st.info("Calibration Complete")
+
+    # Rolling Telemetry Dashboard
+    st.markdown("### Researcher Telemetry Dashboard")
+    st.markdown(f"**Active Session ID:** `{st.session_state.session_id}`")
+    st.markdown(f"**Current Playhead Position:** `{playhead_pos:.1f}s`")
+    st.markdown(f"**Extracted Emotion State:** `{extracted_emotion}`")
+    st.markdown(f"**Queue Latency Metric:** `{latency_ms:.1f}ms`")
+
+# Render the sidebar dashboard fragment inside the sidebar context
+with st.sidebar:
+    show_sidebar_dashboard()
+
 
 video_html = f"""
 <video id="lecture-video" width="100%" height="auto" controls>
@@ -318,6 +343,4 @@ if st.session_state.post_video_questions:
     for idx, question in enumerate(st.session_state.post_video_questions):
         st.markdown(f"**Question {idx + 1}:** {question}")
 
-# Auto-rerun loop to poll telemetry updates periodically
-time.sleep(1.0)
-st.rerun()
+# Periodic updates are handled automatically by the show_sidebar_dashboard fragment
