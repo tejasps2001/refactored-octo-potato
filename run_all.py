@@ -96,7 +96,46 @@ if hasattr(signal, "SIGINT"):
 if hasattr(signal, "SIGTERM"):
     signal.signal(signal.SIGTERM, cleanup)
 
+def validate_knowledge_base():
+    """Verifies whether the 'rag_service/data/' folder exists and contains files."""
+    data_dir = os.path.join(RAG_DIR, "data")
+    if not os.path.exists(data_dir) or not os.path.isdir(data_dir) or not any(os.path.isfile(os.path.join(data_dir, f)) for f in os.listdir(data_dir)):
+        print("[ERROR] Knowledge base empty. Please place lecture files (PDF/MP4) inside rag_service/data/ before running the pipeline.")
+        sys.exit(1)
+
+def verify_ollama_and_models():
+    """Verifies that Ollama is in PATH and the required models are pulled."""
+    import shutil
+    if shutil.which("ollama") is None:
+        print("[ERROR] The system requires an active Ollama environment installation. Please download and install Ollama from https://ollama.com before running the pipeline.")
+        sys.exit(1)
+
+    required_models = ["gemma3:4b", "nomic-embed-text"]
+    try:
+        # Run 'ollama list' to get the current downloaded models
+        result = subprocess.run(["ollama", "list"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+        installed_models = result.stdout
+    except Exception as e:
+        print(f"[ERROR] Failed to run 'ollama list': {e}")
+        sys.exit(1)
+
+    for model in required_models:
+        if model not in installed_models:
+            print(f"[SYSTEM] Model {model} not found locally. Initiating automated pull via Ollama...")
+            try:
+                # Stream the pull CLI output directly to the terminal
+                subprocess.run(["ollama", "pull", model], check=True)
+            except Exception as e:
+                print(f"[ERROR] Failed to pull model {model}: {e}")
+                sys.exit(1)
+
 def main():
+    # Validate knowledge base at the entry point of the pipeline
+    validate_knowledge_base()
+
+    # Verify Ollama installation and download required model weights
+    verify_ollama_and_models()
+
     parser = argparse.ArgumentParser(
         description="Unified Cross-Platform Orchestrator for RAG & Emotion Telemetry Services"
     )

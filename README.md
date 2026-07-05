@@ -8,12 +8,12 @@ This system combines a local syllabus-bound RAG assistant (powered by Ollama and
 
 ## Features
 
-* **Syllabus-Bound Local RAG**: Restricts LLM responses strictly to retrieved course lecture transcripts and notes. Adapts explanation tone and detail based on the student's detected emotion (e.g., patient walkthroughs for frustration/confusion, concise technical responses for high concentration/engagement).
-* **Automated Ingestion Pipeline**: Automatically processes PDFs, text notes, and video audio tracks (using Whisper transcriptions) on startup, chunking and embedding the content into ChromaDB.
-* **Struggle Tracking & Analytics**: Logs navigation actions (rewinds/scrubs), and emotion timelines into SQLite. Analyzes temporal data to detect repeated review patterns and automatically generates concept-check questions addressing high-struggle topics.
-* **Unified Streamlit Interface**: Provides a synchronized video player, real-time researcher metrics (latency, current playhead, extracted emotion state), interactive chat, and a post-session assessment dashboard.
-* **Stabilized Telemetry & Simulation Mode**: Uses non-blocking polling endpoints. Includes an automatic offline fallback mode that activates when the camera process is stopped or telemetry data becomes stale, defaulting the UI gracefully to neutral simulation metrics.
-* **Unified Orchestrator**: Simplifies startup via a cross-platform root controller script (`run_all.py`) handling environment verification, virtual env builds, port cleanup, and multi-service lifecycle control.
+- **Syllabus-Bound Local RAG**: Restricts LLM responses strictly to retrieved course lecture transcripts and notes. Adapts explanation tone and detail based on the student's detected emotion (e.g., patient walkthroughs for frustration/confusion, concise technical responses for high concentration/engagement).
+- **Automated Ingestion Pipeline**: Automatically processes PDFs, text notes, and video audio tracks (using Whisper transcriptions) on startup, chunking and embedding the content into ChromaDB.
+- **Struggle Tracking & Analytics**: Logs navigation actions (rewinds/scrubs), and emotion timelines into SQLite. Analyzes temporal data to detect repeated review patterns and automatically generates concept-check questions addressing high-struggle topics.
+- **Unified Streamlit Interface**: Provides a synchronized video player, real-time researcher metrics (latency, current playhead, extracted emotion state), interactive chat, and a post-session assessment dashboard.
+- **Stabilized Telemetry & Simulation Mode**: Uses non-blocking polling endpoints. Includes an automatic offline fallback mode that activates when the camera process is stopped or telemetry data becomes stale, defaulting the UI gracefully to neutral simulation metrics.
+- **Unified Orchestrator**: Simplifies startup via a cross-platform root controller script (run_all.py) handling environment verification, virtual env builds, port cleanup, and multi-service lifecycle control.
 
 ## Tech Stack
 
@@ -26,47 +26,53 @@ This system combines a local syllabus-bound RAG assistant (powered by Ollama and
 | Vision & Tracking | MediaPipe Task Vision, OpenCV |
 | Interface | Streamlit (Non-blocking polling updates) |
 
-## Getting Started
+## Setup & Running the System
 
-### Prerequisites
-* Windows, Linux, or macOS
-* Python 3.9 - 3.12
-* Ollama with `gemma3:4b` and `nomic-embed-text` installed and running
+Follow these steps in chronological order to initialize and run the emotionally aware RAG tutor.
 
-### Quick Start
+### Prerequisites (Manual Setup)
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/tejasps2001/refactored-octo-potato.git
-   cd refactored-octo-potato
-   ```
+1. **Ollama Environment**:
+   - Download and install Ollama for your operating system from the official website: https://ollama.com.
+   - Run the Ollama application to ensure the background service is active (an icon will appear in your system tray).
 
-2. Run the unified launcher script:
-   Run without flags to start all services:
-   On Linux/macOS:
-   ```bash
-   python3 run_all.py
-   ```
-   On Windows:
-   ```cmd
-   python run_all.py
-   ```
+2. **Learning Materials**:
+   - Place your raw learning materials (e.g., lecture PDFs, course notes, or video files like `lecture.mp4`) inside the `rag_service/data/` directory.
+   - Note: The directory must contain at least one document or media file before initiating the orchestration script.
 
-   Or use individual flags to start specific services:
-   ```bash
-   python3 run_all.py -e -r -f -c
-   ```
+### Execution & Automated Orchestration
 
-3. Access the Streamlit dashboard:
-   Open your browser and navigate to `http://localhost:8501`.
+1. **Start the Unified Launcher**:
+   Open a terminal in the root directory of the project and run the orchestrator script:
+   - On Windows:
+     ```cmd
+     python run_all.py
+     ```
+   - On Linux/macOS:
+     ```bash
+     python3 run_all.py
+     ```
 
-### Unified Launcher Flags
-* `-e`, `--emotion-api`: Spawns the Emotion Broadcaster API (Port 8001)
-* `-r`, `--rag`: Spawns the RAG Vector Engine API (Port 8000)
-* `-f`, `--frontend`, `--ui`: Spawns the Streamlit Interface (Port 8501)
-* `-c`, `--camera`: Spawns the MediaPipe Camera Loop
-* `--backend`: Spawns both RAG and Emotion backends
-* `-h`, `--help`: Shows the help message
+2. **Automated Setup Steps**:
+   Upon launch, the orchestrator script dynamically executes the following automated routines:
+   - **Environment Synchronization**: Programmatically creates virtual environments (`.venv`) for each microservice (`emotion_service`, `rag_service`, and `frontend`) and runs `pip install -r requirements.txt` to sync dependencies automatically.
+   - **Ollama PATH & Weight Check**: Verifies that Ollama is installed on your system. It then checks if the required model weights (`gemma3:4b` and `nomic-embed-text`) exist locally. If any model is missing, it automatically pulls the weights from the Ollama registry.
+   - **Automated Ingestion**: Extracts audio from any video files, runs local transcription using faster-whisper, splits documents into chunks, embeds the text, and stores them in a local ChromaDB database.
+
+3. **Access the Streamlit Dashboard**:
+   Once all services show as active in your terminal, open your web browser and navigate to:
+   - http://localhost:8501
+
+## Unified Launcher Flags
+
+To run individual services or target specific setup steps manually, run `python run_all.py` with one or more of the following flags:
+
+- `-e`, `--emotion-api`: Spawns the Emotion Broadcaster API (Port 8001)
+- `-r`, `--rag`: Spawns the RAG Vector Engine API (Port 8000)
+- `-f`, `--frontend`, `--ui`: Spawns the Streamlit Interface (Port 8501)
+- `-c`, `--camera`: Spawns the MediaPipe Camera Loop
+- `--backend`: Spawns both RAG and Emotion backends
+- `-h`, `--help`: Shows the help message
 
 ## License
 
