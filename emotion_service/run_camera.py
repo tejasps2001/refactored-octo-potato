@@ -13,7 +13,8 @@ from emotion_recognizer_setup import create_emotion_recognizer
 
 # Tell Python to ignore terminal resize signals (SIGWINCH) so that the
 # camera feed doesn't abruptly close
-signal.signal(signal.SIGWINCH, signal.SIG_IGN)
+if hasattr(signal, 'SIGWINCH'):
+    signal.signal(signal.SIGWINCH, signal.SIG_IGN)
 
 gesture_recognizer = create_gesture_recognizer()
 emotion_recognizer = create_emotion_recognizer()
@@ -62,16 +63,20 @@ while True:
     # Get a monotonically increasing timestamp to keep track of
     # time elapsed
     now = time.monotonic() * 1000
+    now_ms = int(now)
+    if now_ms <= gesture_timestamp_ms:
+        now_ms = gesture_timestamp_ms + 1
+    gesture_timestamp_ms = now_ms
 
     # Gesture recognition
     if now - last_gesture_infer_time >= gesture_interval:
         last_gesture_infer_time = now
 
         # Send to recognizer (once per 200 milliseconds)
-        gesture_recognizer.recognize_async(mp_image, int(now))
+        gesture_recognizer.recognize_async(mp_image, now_ms)
 
     # Emotion recognition
-    emotion_recognizer.detect_async(mp_image, int(now))
+    emotion_recognizer.detect_async(mp_image, now_ms)
 
     if has_gui:
         try:
