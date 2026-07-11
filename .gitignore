@@ -8,6 +8,9 @@ chroma_db/
 *.log
 todo.txt
 
+# Folder which stores lecture materials
+rag_service/data/*
+!rag_service/data/README.md
 
 # Local runtime state and databases
 emotion_service/current_state.json
