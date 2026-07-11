@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, CSVLoader
+from video_utils import find_media_file
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
@@ -30,37 +31,7 @@ def get_loader(file_path):
 
 def preprocess_multimedia():
     """Finds media files, extracts audio, and transcribes them using faster-whisper."""
-    # Find all potential media files
-    media_exts = {".mp4", ".mkv", ".mp3", ".wav"}
-    all_files = glob.glob(os.path.join(DATA_DIR, "*.*"))
-    media_files = []
-    for f in all_files:
-        ext = os.path.splitext(f)[1].lower()
-        if ext in media_exts:
-            media_files.append(f)
-
-    if not media_files:
-        return
-
-    # Select exactly one media file(Priority: .mp4 -> .mkv -> .mp3 -> .wav)
-    media_files.sort()
-    selected_file = None
-    for ext in [".mp4", ".mkv"]:
-        for f in media_files:
-            if f.endswith(ext):
-                selected_file = f
-                break
-        if selected_file:
-            break
-    if not selected_file:
-        for ext in [".mp3", ".wav"]:
-            for f in media_files:
-                if f.endswith(ext):
-                    selected_file = f
-                    break
-            if selected_file:
-                break
-
+    selected_file = find_media_file(DATA_DIR)
     if not selected_file:
         return
 

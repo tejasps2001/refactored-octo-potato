@@ -15,6 +15,7 @@ import json
 
 from session_logger import SessionLogger
 from synchronizer import TemporalSynchronizer
+from video_utils import find_media_file
 
 # 1. Initialize FastAPI
 app = FastAPI(title="Lecture Analysis API")
@@ -29,9 +30,9 @@ app.add_middleware(
 
 @app.get("/video")
 def get_video():
-    video_path = os.path.join(os.path.dirname(__file__), "data", "lecture.mp4")
-    if os.path.exists(video_path):
-        return FileResponse(video_path, media_type="video/mp4")
+    video_path = find_media_file(os.path.join(os.path.dirname(__file__), "data"))
+    if video_path and video_path.exists():
+        return FileResponse(str(video_path), media_type="video/mp4")
     return {"error": "Video file not found"}
 
 TRANSCRIPT_PATH = os.path.join(os.path.dirname(__file__), "data",
