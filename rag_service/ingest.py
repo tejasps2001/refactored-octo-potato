@@ -12,6 +12,7 @@ from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
 from langchain_core.documents import Document
 from faster_whisper import WhisperModel
+from config import OLLAMA_EMBEDDING_MODEL
 
 DB_DIR = "./chroma_db"
 DATA_DIR = "./data"
@@ -161,7 +162,7 @@ def ingest_documents():
     splits = text_splitter.split_documents(docs)
     
     # Embed and persist to disk
-    embeddings = OllamaEmbeddings(model="nomic-embed-text")
+    embeddings = OllamaEmbeddings(model=OLLAMA_EMBEDDING_MODEL)
     print("Embedding and saving to ChromaDB...")
     
     Chroma.from_documents(

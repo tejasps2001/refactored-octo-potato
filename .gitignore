@@ -8,7 +8,6 @@ chroma_db/
 *.log
 todo.txt
 
-rag_service/data/
 
 # Local runtime state and databases
 emotion_service/current_state.json

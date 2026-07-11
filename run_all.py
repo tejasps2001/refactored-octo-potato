@@ -167,6 +167,8 @@ def main():
     # Build environment to ensure output is unbuffered
     sub_env = os.environ.copy()
     sub_env["PYTHONUNBUFFERED"] = "1"
+    # Force subprocesses to use UTF-8 for their stdio, fixing Unicode errors on Windows
+    sub_env["PYTHONIOENCODING"] = "utf-8"
 
     try:
         # Step 1: Environment Sync / Checks
@@ -183,8 +185,8 @@ def main():
             cmd = [venv_python, "-m", "uvicorn", "emotion_api:app", "--host", "0.0.0.0", "--port", "8001"]
             print(f"[SYSTEM] Starting EMOTION_API...", flush=True)
             p = subprocess.Popen(cmd, cwd=EMOTION_DIR, env=sub_env,
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
-                                 text=True, bufsize=1, errors='replace')
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 text=True, bufsize=1, errors='replace', encoding='utf-8')
             processes.append((p, "EMOTION_API"))
             print(f"[SYSTEM] Background process active: EMOTION_API (PID: {p.pid})", flush=True)
             start_log_thread(p, "EMOTION_API")
@@ -195,8 +197,8 @@ def main():
             cmd = [venv_python, "run_camera.py"]
             print(f"[SYSTEM] Starting CAMERA_LOOP...", flush=True)
             p = subprocess.Popen(cmd, cwd=EMOTION_DIR, env=sub_env,
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
-                                 text=True, bufsize=1, errors='replace')
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 text=True, bufsize=1, errors='replace', encoding='utf-8')
             processes.append((p, "CAMERA_LOOP"))
             print(f"[SYSTEM] Background process active: CAMERA_LOOP (PID: {p.pid})", flush=True)
             start_log_thread(p, "CAMERA_LOOP")
@@ -212,8 +214,8 @@ def main():
             cmd = [venv_python, "-m", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
             print(f"[SYSTEM] Starting RAG_SERVICE...", flush=True)
             p = subprocess.Popen(cmd, cwd=RAG_DIR, env=sub_env,
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
-                                 text=True, bufsize=1, errors='replace')
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 text=True, bufsize=1, errors='replace', encoding='utf-8')
             processes.append((p, "RAG_SERVICE"))
             print(f"[SYSTEM] Background process active: RAG_SERVICE (PID: {p.pid})", flush=True)
             start_log_thread(p, "RAG_SERVICE")
@@ -224,8 +226,8 @@ def main():
             cmd = [venv_python, "-m", "streamlit", "run", "app.py", "--server.port", "8501"]
             print(f"[SYSTEM] Starting STREAMLIT_UI...", flush=True)
             p = subprocess.Popen(cmd, cwd=FRONTEND_DIR, env=sub_env,
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
-                                 text=True, bufsize=1, errors='replace')
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 text=True, bufsize=1, errors='replace', encoding='utf-8')
             processes.append((p, "STREAMLIT_UI"))
             print(f"[SYSTEM] Foreground process active: STREAMLIT_UI (PID: {p.pid})", flush=True)
             start_log_thread(p, "STREAMLIT_UI")

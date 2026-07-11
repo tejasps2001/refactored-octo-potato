@@ -16,6 +16,7 @@ import json
 from session_logger import SessionLogger
 from synchronizer import TemporalSynchronizer
 from video_utils import find_media_file
+from config import OLLAMA_EMBEDDING_MODEL, OLLAMA_LLM_MODEL, get_llm_kwargs
 
 # 1. Initialize FastAPI
 app = FastAPI(title="Lecture Analysis API")
@@ -67,17 +68,11 @@ class QAGenerationRequest(BaseModel):
     session_id: str = "default_session"
 
 # Setup the LangChain Components globally
-embeddings = OllamaEmbeddings(model="nomic-embed-text")
+embeddings = OllamaEmbeddings(model=OLLAMA_EMBEDDING_MODEL)
 vectorstore = Chroma(persist_directory="./chroma_db", embedding_function=embeddings)
 retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
-llm = ChatOllama(
-    model="gemma3:4b", 
-    temperature=0.0,
-    num_predict=256,
-    num_ctx=2048,
-    num_thread=4
-)
+llm = ChatOllama(**get_llm_kwargs())
 
 template = """You are a helpful teaching assistant. You must answer the student's question ONLY using the provided retrieved context from the lecture transcript and notes. Do not use any outside knowledge. If the answer to the question cannot be found or inferred from the provided context, you must output exactly: "This topic was not covered in the lecture material." and nothing else.
 
